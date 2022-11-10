@@ -1,0 +1,1167 @@
+Author: Pourya Aliasghari, University of Waterloo
+The current version is available for use under GNU GPLv3 license.
+Please cite:
+- Aliasghari, P., Ghafurian, M., Nehaniv, C.L. Dautenhahn, K. How Do We Perceive Our Trainee Robots?
+Exploring the Impact of Robot Errors and Appearance when Performing Domestic Physical Tasks on Teachers’
+Trust and Evaluations. ACM Transactions on Human-Robot Interaction
+- Aliasghari, P., Ghafurian, M., Nehaniv, C.L. Dautenhahn, K. (2021). Effect of Domestic Trainee Robots’
+Errors on Human Teachers’ Trust. in RO-MAN ’21: 30th IEEE International Conference on Robot and Human
+Interactive Communication.
+
+```{r}
+# some may not be used
+library(ggplot2)
+library(magrittr)
+library(tidyverse)
+library(gridExtra)
+library(Hmisc)
+library(egg)
+library(lme4) 
+library(lmerTest)
+library(car)
+library(multcomp)
+library(lsmeans)
+library(plyr)
+library(fitdistrplus)
+library(ggpubr)
+library(wesanderson)
+library(MASS)
+library(cAIC4)
+library(gridExtra)
+library(grid)
+library(ggplot2)
+library(RColorBrewer)
+library(reshape2)	
+library(ez)
+library(multcomp)
+```
+
+```{r}
+# Loading the data
+data = read.csv("Experiment-2-data.csv")
+
+data$Appearance = factor(data$Appearance)
+data$id = factor(data$id)
+data$Group = factor(data$Group)
+data$Right = factor(data$Right)
+data$Left = factor(data$Left)
+
+data$Cook <- factor(data$Cook)
+data$Laundry <- factor(data$Laundry)
+data$Gender <- factor(data$Gender)
+data$Gender_n <- as.numeric(factor(data$Gender))
+
+data$Professional <- factor(data$Professional)
+data$Skilled <- factor(data$Skilled)
+data$Experienced <- factor(data$Experienced)
+data$Trust <- factor(data$Trust)
+data$Authority <- factor(data$Authority)
+```
+
+```{r}
+# Participants demographics summary in each group
+summary(as.factor(data$Gender_p))/(sum(summary(as.factor(data$Gender_p)))/138)
+
+data.temp <- data[data$Group == 1,]
+ddply(data.temp,~Round,function(data.temp) summary(data.temp$Age))
+ddply(data.temp,~Round, summarise, meas.mean=mean(Age), meas.sd=sd(Age))
+
+data.temp <- data[data$Group == 2,]
+ddply(data.temp,~Round,function(data.temp) summary(data.temp$Age))
+ddply(data.temp,~Round, summarise, meas.mean=mean(Age), meas.sd=sd(Age))
+
+data.temp <- data[data$Group == 3,]
+ddply(data.temp,~Round,function(data.temp) summary(data.temp$Age))
+ddply(data.temp,~Round, summarise, meas.mean=mean(Age), meas.sd=sd(Age))
+```
+
+```{r}
+# Fig. 8
+labs <- c("First robot","Second robot")
+names(labs) <- c("First", "Second")
+colours_b=c("#35978f", "#f768a1","#bf812d")
+labs_l=c("1 (BSCCCC)","2 (BSCCCS)","3 (BSCCCB)")
+
+ggplot(data, aes(x = Order, y = Severity, group = Group)) + 
+  stat_summary(aes(color=Group,shape=Group),fun.data = "mean_cl_normal", geom="point", size=1.5, position = position_dodge(0.5)) +
+  stat_summary(aes(color=Group),fun.data = "mean_cl_normal", geom="errorbar",position = position_dodge(0.5),size=0.5, width=0.3 ) +
+  facet_grid(~Encounter, scales="free_x", switch = "x", labeller = labeller(Encounter=labs)) +
+  theme_light() +
+  theme(plot.title = element_text(size = 10)) +
+  theme(axis.title.x = element_text(size=9),axis.title.y = element_text(size=9)) +
+  xlab("Round") +
+  ylab("Severity") +
+  scale_x_discrete(labels= c("1","2","3","4","5","6","1","2","3","4","5","6")) +
+  theme(strip.background = element_rect(fill="grey"),strip.text.x = element_text(size = 9, color = "black"),panel.spacing=unit(0, "lines")) +
+  scale_shape_discrete(name  ="Condition",breaks=c("1","2","3"),labels= labs_l) +
+  scale_color_discrete(name  ="Condition",breaks=c("1","2","3"),labels= labs_l) +
+  theme(legend.direction = "horizontal", legend.position = "top")
+```
+
+```{r}
+# t-tests for severities
+
+# Assumption checks:
+# Normality of data, Shapiro-Wilk test:
+shapiro.test(data[with(data, (Encounter == 'First' & Round == 2) | (Encounter == 'Second' & Group == 2 & Round == 6)), ]$Severity)
+shapiro.test(data[with(data, (Encounter == 'Second' & Round == 2) | (Encounter == 'First' & Group == 2 & Round == 6)), ]$Severity)
+hist(data[with(data, (Encounter == 'First' & Round == 2) | (Encounter == 'Second' & Group == 2 & Round == 6)), ]$Severity)
+# Homogeneity of variance, Levene's test:
+var.test(x = data[with(data, (Encounter == 'First' & Round == 2) | (Encounter == 'Second' & Group == 2 & Round == 6)), ]$Severity, y = data[with(data, (Encounter == 'Second' & Round == 2) | (Encounter == 'First' & Group == 2 & Round == 6)), ]$Severity, ratio = 1, alternative = "two.sided", conf.level = 0.95)
+# Independence of data, Runs test:
+RunsTest(data[with(data, (Encounter == 'First' & Round == 2) | (Encounter == 'Second' & Group == 2 & Round == 6)), ]$Severity)
+RunsTest(data[with(data, (Encounter == 'Second' & Round == 2) | (Encounter == 'First' & Group == 2 & Round == 6)), ]$Severity)
+
+# Differences between replacing items in the right side and the left side of the tea
+t.test(data[with(data, (Encounter == 'First' & Round == 2) | (Encounter == 'Second' & Group == 2 & Round == 6)), ]$Severity , data[with(data, (Encounter == 'Second' & Round == 2) | (Encounter == 'First' & Group == 2 & Round == 6)), ]$Severity, var.equal=T)
+
+# Difference between replacing either of the two types of milk 
+t.test(data[with(data, (Encounter == 'First' & Round == 2) | (Encounter == 'Second' & Group == 2 & Round == 6) & Right == 1), ]$Severity , data[with(data, (Encounter == 'First' & Round == 2) | (Encounter == 'Second' & Group == 2 & Round == 6) & Right == 2), ]$Severity, var.equal=T)
+
+# Difference between replacing either of the two types of sweetner 
+t.test(data[with(data, (Encounter == 'Second' & Round == 2) | (Encounter == 'First' & Group == 2 & Round == 6) & Left == 1), ]$Severity , data[with(data, (Encounter == 'Second' & Round == 2) | (Encounter == 'First' & Group == 2 & Round == 6) & Left == 2), ]$Severity, var.equal=T)
+```
+
+```{r}
+# Fig. 9
+w = 0.5
+colours_bc=c("#b30000", "#045a8d")
+colours_bl=c("#fc4e2a", "#3690c0")
+meas.scale <- c(0,100)
+t <- seq(0, 180, by = 1) * pi / 180
+r1 <- 0.5
+r2 <- 1
+r3 <- 1.2
+x1 <- r1 * cos(t)
+y1 <- r1*15 * sin(t)
+y1[20:162] <- y1[20]
+arc.df1 <- data.frame(Group = x1, Percentage = y1)
+x2 <- r1 *2 * cos(t)
+y2 <- r1 * 2 * 9 * sin(t)
+y2[18:164] <- y2[18]
+arc.df2 <- data.frame(Group = x2, Percentage = y2)
+
+# Reordering
+data$Cook <- factor(data$Cook,
+                            levels = c('Robot alone\nRobot with me','Order from restaurant\nDo by myself'))
+data$Laundry <- factor(data$Laundry,
+                               levels = c('Robot alone\nRobot with me','Use service\nDo by myself'))
+
+
+pr = as.data.frame(xtabs( ~ Cook + Group, data=data[with(data, Round == 1), ]))
+prp = as.data.frame(transform(pr, Percentage = ave(Freq, Group, FUN = prop.table)))
+p1<- ggplot(prp, aes(x=Group, y=Percentage*100)) + geom_bar(aes(fill = Cook),stat = "identity",position=position_dodge(), width = w) +
+  theme_light() +
+  scale_fill_manual(values = colours_bc) +
+  labs(fill = "Preference in\nCooking task:") +
+  scale_x_discrete(breaks=c("1","2","3"),
+                   labels=c("1 (BSCCCC)", "2 (BSCCCS)", "3 (BSCCCB)")) +
+  theme(plot.title = element_text(size = 10),axis.title.y = element_text(size = 9),axis.title.x = element_text(size = 9)) +
+  ylab("Percent (%)") +
+  xlab("Condition") +
+  theme(legend.key.size = unit(1.5, 'lines'),legend.text = element_text(size = 8),legend.spacing.y = unit(1.0, 'cm')) +
+  coord_cartesian(ylim = meas.scale) +
+  theme(legend.direction = "horizontal", legend.position = "top") +
+  geom_line(data = arc.df1, aes(x=Group+1.5, y=Percentage+84), linetype="solid", size = 0.3, inherit.aes = FALSE) +
+  annotate("text",x = 1.5, y = 87, label = "**", color = "black", size=4) +
+  geom_line(data = arc.df1, aes(x=Group+2.5, y=Percentage+84), linetype="solid", size = 0.3, inherit.aes = FALSE) +
+  annotate("text",x = 2.5, y = 87, label = "***", color = "black", size=4) +
+  geom_line(data = arc.df2, aes(x=Group+2, y=Percentage+90), linetype="solid", size = 0.3, inherit.aes = FALSE) +
+  annotate("text",x = 2, y = 93, label = "***", color = "black", size=4)
+
+pr = as.data.frame(xtabs( ~ Laundry + Group, data=data[with(data, Round == 1), ]))
+prp = as.data.frame(transform(pr, Percentage = ave(Freq, Group, FUN = prop.table)))
+p2<-ggplot(prp, aes(x=Group, y=Percentage*100)) + geom_bar(aes(fill = Laundry),stat = "identity",position=position_dodge(), width = w) +
+  theme_light() +
+  scale_fill_manual(values = colours_bl) +
+  labs(fill = "Preference in\nLaundry task:") +
+  scale_x_discrete(breaks=c("1","2","3"),
+                   labels=c("1 (BSCCCC)", "2 (BSCCCS)", "3 (BSCCCB)")) +
+  theme(plot.title = element_text(size = 10),axis.title.y = element_text(size = 9),axis.title.x = element_text(size = 9)) +
+  ylab("Percent (%)") +
+  xlab("Condition") +
+  theme(legend.key.size = unit(1.5, 'lines'),legend.text = element_text(size = 8),legend.spacing.y = unit(1.0, 'cm')) +
+  coord_cartesian(ylim = meas.scale) +
+  theme(legend.direction = "horizontal", legend.position = "top") +
+  geom_line(data = arc.df1, aes(x=Group+1.5, y=Percentage+88), linetype="solid", size = 0.3, inherit.aes = FALSE) +
+  annotate("text",x = 1.5, y = 91, label = "*", color = "black", size=4) +
+  geom_line(data = arc.df1, aes(x=Group+2.5, y=Percentage+88), linetype="solid", size = 0.3, inherit.aes = FALSE) +
+  annotate("text",x = 2.5, y = 91, label = "*", color = "black", size=4) +
+  geom_line(data = arc.df2, aes(x=Group+2, y=Percentage+94), linetype="solid", size = 0.3, inherit.aes = FALSE) +
+  annotate("text",x = 2, y = 97, label = "***", color = "black", size=4)
+
+p3<-ggplot(data[with(data, Round == 1), ], aes(Encounter, ..count..)) + geom_bar(aes(fill = Cook),position=position_dodge(), width = w) +
+  theme_light() +
+  scale_fill_manual(values = colours_bc) +
+  theme(plot.title = element_text(size = 10),axis.title.y = element_text(size = 9),axis.title.x = element_text(size = 9)) +
+  ylab("Count") +
+  theme(legend.key.size = unit(1.5, 'lines'),legend.text = element_text(size = 8),legend.spacing.y = unit(1.0, 'cm')) +
+  coord_cartesian(ylim = meas.scale) +
+  theme(legend.position = "none")
+
+p4<-ggplot(data[with(data, Round == 1), ], aes(Encounter, ..count..)) + geom_bar(aes(fill = Laundry),position=position_dodge(), width = w) +
+  theme_light() +
+  scale_fill_manual(values = colours_bl) +
+  theme(plot.title = element_text(size = 10),axis.title.y = element_text(size = 9),axis.title.x = element_text(size = 9)) +
+  ylab("Count") +
+  theme(legend.key.size = unit(1.5, 'lines'),legend.text = element_text(size = 8),legend.spacing.y = unit(1.0, 'cm')) +
+  coord_cartesian(ylim = meas.scale) +
+  theme(legend.position = "none")
+
+p5<-ggplot(data[with(data, Round == 1), ], aes(Appearance, ..count..)) + geom_bar(aes(fill = Cook),position=position_dodge(), width = w) +
+  theme_light() +
+  scale_fill_manual(values = colours_bc) +
+  theme(plot.title = element_text(size = 10),axis.title.y = element_text(size = 9),axis.title.x = element_text(size = 9)) +
+  ylab("Count") +
+  theme(legend.key.size = unit(1.5, 'lines'),legend.text = element_text(size = 8),legend.spacing.y = unit(1.0, 'cm')) +
+  coord_cartesian(ylim = meas.scale) +
+  theme(legend.position = "none")
+
+p6<-ggplot(data[with(data, Round == 1), ], aes(Appearance, ..count..)) + geom_bar(aes(fill = Laundry),position=position_dodge(), width = w) +
+  theme_light() +
+  scale_fill_manual(values = colours_bl) +
+  theme(plot.title = element_text(size = 10),axis.title.y = element_text(size = 9),axis.title.x = element_text(size = 9)) +
+  ylab("Count") +
+  theme(legend.key.size = unit(1.5, 'lines'),legend.text = element_text(size = 8),legend.spacing.y = unit(1.0, 'cm')) +
+  coord_cartesian(ylim = meas.scale) +
+  theme(legend.position = "none")
+
+lay <- rbind(c(1,2),
+             c(3,4),
+             c(5,6))
+grid.arrange(p1,p2,p3,p4,p5,p6,heights=c(2.5,1.6,1.6),ncol = 2,nrow = 3,layout_matrix = lay)
+```
+
+```{r}
+# GLM for trust with cooking, Table 3
+
+# Finding the model
+m = glm(Cook ~ Group + Appearance + Encounter + Age + Gender_p + Gender_n + Benevolence + Integrity + Competence + Trusting.Stance + like_cooking + often_cooking + Extraversion + Agreeableness + Conscientiousness + Emotional.Stability + Openness.to.Experiences, data=data[with(data, Round == 1), ], family="binomial")
+step(m,reduce.fixed = TRUE)
+
+# After step-wise:
+m = glm(formula = Cook ~ Group + Benevolence + Competence + Trusting.Stance + 
+          Conscientiousness + Openness.to.Experiences, family = "binomial", 
+        data = data[with(data, Round == 1), ])
+summary(m) # 328.96
+
+summary(glht(m, mcp(Group="Tukey")), test=adjusted(type="holm"))
+```
+
+```{r}
+# GLM for trust with laundry, Table 3
+
+# Finding the model
+m = glm(Laundry ~ Group + Appearance + Encounter + Age + Gender_p + Gender_n + Benevolence + Integrity + Competence + Trusting.Stance + like_laundry + often_laundry + Extraversion + Agreeableness + Conscientiousness + Emotional.Stability + Openness.to.Experiences, data=data[with(data, Round == 1 & Gender_p !="3"), ], family="binomial")
+step(m,reduce.fixed = TRUE)
+
+# After step-wise:
+m = glm(formula = Laundry ~  Group + Competence + 
+          Emotional.Stability + Openness.to.Experiences, family = "binomial", 
+        data = data[with(data, Round == 1 & Gender_p !="3"), ])
+summary(m) # 318.51 #
+
+summary(glht(m, mcp(Group="Tukey")), test=adjusted(type="holm"))
+```
+
+```{r}
+# Fig. 9
+meas.scale <- c(-100,1100)
+t <- seq(0, 180, by = 1) * pi / 180
+r1 <- 0.5
+r2 <- 1
+r3 <- 1.5
+x1 <- r1 * cos(t)
+y1 <- r1*100 * sin(t)
+y1[30:152] <- y1[30]
+arc.df1 <- data.frame(Round = x1, Confidence = y1)
+x2 <- r1 *2* cos(t)
+y2 <- r1  * 200 * sin(t)
+y2[20:162] <- y2[20]
+arc.df2 <- data.frame(Round = x2, Confidence = y2)
+color_t2="#762a83"
+colours_dress <- c("#762a83","#ff7f00")
+
+p1<-ggplot(data[with(data, Round == 1), ], aes(x = Group, y = Scenario, group = Appearance)) + 
+  coord_cartesian(ylim = meas.scale) +
+  stat_summary(aes(color=Appearance,shape=Appearance),fun.data = "mean_cl_normal", geom="point", size=1.5, position = position_dodge(0.6)) +
+  stat_summary(aes(color=Appearance),fun.data = "mean_cl_normal", geom="errorbar",position = position_dodge(0.6),size=0.4, width=0.3 ) +
+  ggtitle("(A) Realism of the teaching scenarios:") +
+  theme_light() +
+  theme(plot.title = element_text(size = 10)) +
+  scale_color_manual(values=colours_dress) +
+  geom_vline(xintercept=5.5, linetype="dashed", color = "black", size=0.3) +
+  ylab("") +
+  xlab("Condition") +
+  theme(legend.position = "none") +
+  scale_x_discrete(breaks=c("1","2","3"),
+                   labels=c("1 (BSCCCC)", "2 (BSCCCS)", "3 (BSCCCB)")) +
+  scale_y_continuous(
+        name = "",
+    breaks = c(0,1000),
+    labels = c("Not realistic\nat all","Very\nrealistic"),
+    sec.axis = sec_axis( breaks = c(0,250,500,750,1000),trans=~.*1, name="")
+  ) +
+  theme(axis.title.x = element_text(size=9),axis.title.y = element_text(size=9),axis.text.y = element_text(angle = 90,hjust=0.5))
+
+p2<-ggplot(data[with(data, Round == 1), ], aes(x = Group, y = Learning, group = Appearance)) + 
+  coord_cartesian(ylim = meas.scale) +
+  stat_summary(aes(color=Appearance,shape=Appearance),fun.data = "mean_cl_normal", geom="point", size=1.5, position = position_dodge(0.6)) +
+  stat_summary(aes(color=Appearance),fun.data = "mean_cl_normal", geom="errorbar",position = position_dodge(0.6),size=0.4, width=0.3 ) +
+  ggtitle("(B) Improvement of robots over time:") +
+  theme_light() +
+  theme(plot.title = element_text(size = 10)) +
+  scale_color_manual(values=colours_dress) +
+  geom_vline(xintercept=5.5, linetype="dashed", color = "black", size=0.3) +
+  ylab("") +
+  xlab("Condition") +
+  theme(legend.position = "none") +
+  scale_x_discrete(breaks=c("1","2","3"),
+                   labels=c("1 (BSCCCC)", "2 (BSCCCS)", "3 (BSCCCB)")) +
+  scale_y_continuous(
+        name = "",
+    breaks = c(0,1000),
+    labels = c("Did not improve\nat all","Improved\na lot"),
+    sec.axis = sec_axis( breaks = c(0,250,500,750,1000),trans=~.*1, name="")
+  ) +
+  theme(axis.title.x = element_text(size=9),axis.title.y = element_text(size=9),axis.text.y = element_text(angle = 90,hjust=0.5)) +
+  geom_line(data = arc.df1, aes(x=Round+1.5, y=Confidence+900), linetype="solid", size = 0.3, inherit.aes = FALSE) +
+  annotate("text",x = 1.5, y = 940, label = "***", color = "black", size=4) +
+  geom_line(data = arc.df1, aes(x=Round+2.5, y=Confidence+650), linetype="solid", size = 0.3, inherit.aes = FALSE) +
+  annotate("text",x = 2.5, y = 690, label = "**", color = "black", size=4) +
+  geom_line(data = arc.df2, aes(x=Round+2, y=Confidence+980), linetype="solid", size = 0.3, inherit.aes = FALSE) +
+  annotate("text",x = 2, y = 1020, label = "***", color = "black", size=4)
+
+p3<-ggplot(data[with(data, Round == 1), ], aes(x = Group, y = Teaching, group = Appearance)) + 
+  coord_cartesian(ylim = meas.scale) +
+  stat_summary(aes(color=Appearance,shape=Appearance),fun.data = "mean_cl_normal", geom="point", size=1.5, position = position_dodge(0.6)) +
+  stat_summary(aes(color=Appearance),fun.data = "mean_cl_normal", geom="errorbar",position = position_dodge(0.6),size=0.4, width=0.3 ) +
+  ggtitle("(C) Success of robots in teaching\ncooking tasks to another robot:") +
+  theme_light() +
+  theme(plot.title = element_text(size = 10)) +
+  scale_color_manual(values=colours_dress) +
+  geom_vline(xintercept=5.5, linetype="dashed", color = "black", size=0.3) +
+  ylab("") +
+  xlab("Condition") +
+  theme(legend.position = "none") +
+  scale_x_discrete(breaks=c("1","2","3"),
+                   labels=c("1 (BSCCCC)", "2 (BSCCCS)", "3 (BSCCCB)")) +
+  scale_y_continuous(
+    name = "",
+    breaks = c(0,1000),
+    labels = c("Not successful\nat all","Very\nsuccessful"),
+    sec.axis = sec_axis( breaks = c(0,250,500,750,1000),trans=~.*1, name="")
+  ) +
+  theme(axis.title.x = element_text(size=9),axis.title.y = element_text(size=9),axis.text.y = element_text(angle = 90,hjust=0.5)) +
+  geom_line(data = arc.df1, aes(x=Round+1.5, y=Confidence+800), linetype="solid", size = 0.3, inherit.aes = FALSE) +
+  annotate("text",x = 1.5, y = 840, label = "***", color = "black", size=4) +
+  geom_line(data = arc.df2, aes(x=Round+2, y=Confidence+880), linetype="solid", size = 0.3, inherit.aes = FALSE) +
+  annotate("text",x = 2, y = 920, label = "***", color = "black", size=4)
+
+p4<-ggplot(data[with(data, Round == 1), ], aes(x = Group, y = Future, group = Appearance)) + 
+  coord_cartesian(ylim = meas.scale) +
+  stat_summary(aes(color=Appearance,shape=Appearance),fun.data = "mean_cl_normal", geom="point", size=1.5, position = position_dodge(0.6)) +
+  stat_summary(aes(color=Appearance),fun.data = "mean_cl_normal", geom="errorbar",position = position_dodge(0.6),size=0.4, width=0.3 ) +
+  ggtitle("(D) Likelihood of using robots to assist\nwith chores in the future:") +
+  theme_light() +
+  theme(plot.title = element_text(size = 10)) +
+  scale_color_manual(values=colours_dress) +
+  geom_vline(xintercept=5.5, linetype="dashed", color = "black", size=0.3) +
+  ylab("") +
+  xlab("Condition") +
+  theme(legend.position = "none") +
+  scale_x_discrete(breaks=c("1","2","3"),
+                   labels=c("1 (BSCCCC)", "2 (BSCCCS)", "3 (BSCCCB)")) +
+  scale_y_continuous(
+    name = "",
+    breaks = c(0,1000),
+    labels = c("Not\nat all","Very\nlikely"),
+    sec.axis = sec_axis( breaks = c(0,250,500,750,1000),trans=~.*1, name="")
+  ) +
+  theme(axis.title.x = element_text(size=9),axis.title.y = element_text(size=9),axis.text.y = element_text(angle = 90,hjust=0.5)) +
+  geom_line(data = arc.df1, aes(x=Round+1.5, y=Confidence+850), linetype="solid", size = 0.3, inherit.aes = FALSE) +
+  annotate("text",x = 1.5, y = 890, label = "***", color = "black", size=4) +
+  geom_line(data = arc.df1, aes(x=Round+2.5, y=Confidence+650), linetype="solid", size = 0.3, inherit.aes = FALSE) +
+  annotate("text",x = 2.5, y = 690, label = "*", color = "black", size=4) +
+  geom_line(data = arc.df2, aes(x=Round+2, y=Confidence+930), linetype="solid", size = 0.3, inherit.aes = FALSE) +
+  annotate("text",x = 2, y = 970, label = "***", color = "black", size=4)
+
+pp <- ggplot(data, aes(x = Round, y = Severity, group = Appearance)) + 
+  coord_cartesian(ylim = meas.scale) +
+  stat_summary(aes(color=Appearance,shape=Appearance),fun.data = "mean_cl_normal", geom="point", size=1.5, position = position_dodge(0.6)) +
+  stat_summary(aes(color=Appearance),fun.data = "mean_cl_normal", geom="errorbar",position = position_dodge(0.6),size=0.4, width=0.3 ) +
+  theme_light() + guides(colour = guide_legend(nrow = 1)) +
+  theme(legend.direction = "horizontal") +
+  scale_color_manual(values=colours_dress)
+legend <- cowplot::get_legend(pp)
+lay <- rbind(c(1,1),
+             c(2,3),
+             c(4,5))
+grid.arrange(legend,p1,p2,p3,p4,heights=c(0.3,2,2.3),ncol = 2,nrow = 3,layout_matrix = lay)
+```
+
+```{r}
+# LMMs predicting participants’ teaching experience and their opinions about the robots, Table 4
+
+m = lmer(Scenario ~ (Group + Age + Gender_p + Gender_n + Extraversion + Agreeableness + Conscientiousness + Emotional.Stability + Openness.to.Experiences + Benevolence + Integrity + Competence + Trusting.Stance) + (1|id), data=data[with(data, Round == 1), ],REML=FALSE)
+step(m,reduce.fixed = TRUE)
+m = lmer(Scenario ~ (Benevolence + Integrity + Competence) + (1|id), data=data[with(data, Round == 1), ],REML=FALSE)
+summary(m)
+
+m = lmer(Learning ~ (Group + Age + Gender_p + Gender_n + Extraversion + Agreeableness + Conscientiousness + Emotional.Stability + Openness.to.Experiences + Benevolence + Integrity + Competence + Trusting.Stance) + (1|id), data=data[with(data, Round == 1), ],REML=FALSE)
+step(m,reduce.fixed = TRUE)
+m = lmer(Learning ~ (Group + Benevolence) + (1|id), data=data[with(data, Round == 1), ],REML=FALSE)
+summary(m)
+summary(glht(m, lsm(pairwise ~ Group)), test=adjusted(type="holm")) # p-value from here
+
+m = lmer(Teaching ~ (Group + Age + Gender_p + Gender_n + Extraversion + Agreeableness + Conscientiousness + Emotional.Stability + Openness.to.Experiences + Benevolence + Integrity + Competence + Trusting.Stance) + (1|id), data=data[with(data, Round == 1), ],REML=FALSE)
+step(m,reduce.fixed = TRUE)
+m = lmer(Teaching ~ (Group) + (1|id), data=data[with(data, Round == 1), ],REML=FALSE)
+summary(m)
+summary(glht(m, lsm(pairwise ~ Group)), test=adjusted(type="holm")) # p-value from here
+
+m = lmer(Future ~ (Group + Age + Gender_p + Gender_n + Extraversion + Agreeableness + Conscientiousness + Emotional.Stability + Openness.to.Experiences + Benevolence + Integrity + Competence + Trusting.Stance) + (1|id), data=data[with(data, Round == 1), ],REML=FALSE)
+step(m,reduce.fixed = TRUE)
+m = lmer(Future ~ (Group + Competence) + (1|id), data=data[with(data, Round == 1), ],REML=FALSE)
+summary(m)
+summary(glht(m, lsm(pairwise ~ Group)), test=adjusted(type="holm")) # p-value from here
+```
+
+```{r}
+# Fig. 11
+meas.scale <- c(0,1000)
+t <- seq(0, 180, by = 1) * pi / 180
+r1 <- 0.5
+r2 <- 1
+r3 <- 1.5
+x1 <- r1 * cos(t)
+y1 <- r1*100 * sin(t)
+y1[40:142] <- y1[40]
+arc.df1 <- data.frame(Round = x1, Confidence = y1)
+x2 <- r1 *4* cos(t)
+y2 <- -r1 * 2 * 80 * sin(t)
+y2[20:162] <- y2[20]
+arc.df2 <- data.frame(Round = x2, Confidence = y2)
+x3 <- r1 *5* cos(t)
+y3 <- -r1 * 2 * 80 * sin(t)
+y3[20:162] <- y3[20]
+arc.df3 <- data.frame(Round = x3, Confidence = y3)
+colours_group <- c("#4daf4a","#984ea3","#ff7f00")
+breaks_r <- as.numeric(c("1","2 ","3","4","5 ","6"))
+labs_l=c("1 (BSCCCC)","2 (BSCCCS)","3 (BSCCCB)")
+
+p1 <- ggplot(data, aes(x = Round, y = Confidence, group = Group)) + 
+  coord_cartesian(ylim = meas.scale) +
+  stat_summary(aes(color=Group,shape=Group),fun.data = "mean_cl_normal", geom="point", size=1.5, position = position_dodge(0.6)) +
+  stat_summary(aes(color=Group),fun.data = "mean_cl_normal", geom="errorbar",position = position_dodge(0.6),size=0.4, width=0.3 ) +
+  theme_light() +
+  theme(plot.title = element_text(size = 10)) +
+  scale_color_manual(values=colours_group) +
+  geom_vline(xintercept=5.5, linetype="dashed", color = "black", size=0.3) +
+  scale_x_continuous(breaks = breaks_r) +
+  ylab("Confidence") +
+  theme(legend.position = "none") +
+  theme(axis.title.x = element_text(size=9),axis.title.y = element_text(size=9)) +
+  geom_line(data = arc.df1, aes(x=Round+1.5, y=Confidence+680), linetype="solid", size = 0.3, inherit.aes = FALSE) +
+  annotate("text",x = 1.5, y = 720, label = "***", color = "black", size=4) +
+  geom_line(data = arc.df1, aes(x=Round+2.5, y=Confidence+850), linetype="solid", size = 0.3, inherit.aes = FALSE) +
+  annotate("text",x = 2.5, y = 890, label = "***", color = "black", size=4) +
+  geom_line(data = arc.df1, aes(x=Round+4.5, y=Confidence+880), linetype="solid", size = 0.3, inherit.aes = FALSE) +
+  annotate("text",x = 4.5, y = 920, label = "***", color = "black", size=4) +
+  geom_line(data = arc.df2, aes(x=Round+4, y=Confidence+490), linetype="solid", size = 0.3, inherit.aes = FALSE) +
+  annotate("text",x = 4, y = 340, label = "*", color = "black", size=4)
+
+p2 <- ggplot(data, aes(x = Round, y = Calmness, group = Group)) + 
+  coord_cartesian(ylim = meas.scale) +
+  stat_summary(aes(color=Group,shape=Group),fun.data = "mean_cl_normal", geom="point", size=1.5, position = position_dodge(0.6)) +
+  stat_summary(aes(color=Group),fun.data = "mean_cl_normal", geom="errorbar",position = position_dodge(0.6),size=0.4, width=0.3 ) +
+  theme_light() +
+  theme(plot.title = element_text(size = 10)) +
+  scale_color_manual(values=colours_group) +
+  geom_vline(xintercept=5.5, linetype="dashed", color = "black", size=0.3) +
+  scale_x_continuous(breaks = breaks_r) +
+  ylab("Calmness") +
+  theme(legend.position = "none") +
+  theme(axis.title.x = element_text(size=9),axis.title.y = element_text(size=9)) +
+  geom_line(data = arc.df1, aes(x=Round+1.5, y=Confidence+680), linetype="solid", size = 0.3, inherit.aes = FALSE) +
+  annotate("text",x = 1.5, y = 720, label = "***", color = "black", size=4) +
+  geom_line(data = arc.df1, aes(x=Round+2.5, y=Confidence+840), linetype="solid", size = 0.3, inherit.aes = FALSE) +
+  annotate("text",x = 2.5, y = 880, label = "***", color = "black", size=4) +
+  geom_line(data = arc.df1, aes(x=Round+4.5, y=Confidence+880), linetype="solid", size = 0.3, inherit.aes = FALSE) +
+  annotate("text",x = 4.5, y = 920, label = "*", color = "black", size=4) +
+  geom_line(data = arc.df2, aes(x=Round+4, y=Confidence+490), linetype="solid", size = 0.3, inherit.aes = FALSE) +
+  annotate("text",x = 4, y = 340, label = "*", color = "black", size=4)
+
+p3 <- ggplot(data, aes(x = Round, y = Liking.the.task, group = Group)) + 
+  coord_cartesian(ylim = meas.scale) +
+  stat_summary(aes(color=Group,shape=Group),fun.data = "mean_cl_normal", geom="point", size=1.5, position = position_dodge(0.6)) +
+  stat_summary(aes(color=Group),fun.data = "mean_cl_normal", geom="errorbar",position = position_dodge(0.6),size=0.4, width=0.3 ) +
+  theme_light() +
+  theme(plot.title = element_text(size = 10)) +
+  scale_color_manual(values=colours_group) +
+  geom_vline(xintercept=5.5, linetype="dashed", color = "black", size=0.3) +
+  scale_x_continuous(breaks = breaks_r) +
+  ylab("Liking the task") +
+  theme(legend.position = "none") +
+  theme(axis.title.x = element_text(size=9),axis.title.y = element_text(size=9)) +
+  geom_line(data = arc.df1, aes(x=Round+1.5, y=Confidence+660), linetype="solid", size = 0.3, inherit.aes = FALSE) +
+  annotate("text",x = 1.5, y = 700, label = "***", color = "black", size=4) +
+  geom_line(data = arc.df1, aes(x=Round+2.5, y=Confidence+800), linetype="solid", size = 0.3, inherit.aes = FALSE) +
+  annotate("text",x = 2.5, y = 840, label = "***", color = "black", size=4) +
+  geom_line(data = arc.df1, aes(x=Round+4.5, y=Confidence+860), linetype="solid", size = 0.3, inherit.aes = FALSE) +
+  annotate("text",x = 4.5, y = 900, label = "***", color = "black", size=4) +
+  geom_line(data = arc.df3, aes(x=Round+3.70, y=Confidence+290), linetype="solid", size = 0.3, inherit.aes = FALSE) +
+  annotate("text",x = 3.5, y = 140, label = "*", color = "black", size=4)
+
+p4 <- ggplot(data, aes(x = Round, y = Attentivness, group = Group)) + 
+  coord_cartesian(ylim = meas.scale) +
+  stat_summary(aes(color=Group,shape=Group),fun.data = "mean_cl_normal", geom="point", size=1.5, position = position_dodge(0.6)) +
+  stat_summary(aes(color=Group),fun.data = "mean_cl_normal", geom="errorbar",position = position_dodge(0.6),size=0.4, width=0.3 ) +
+  theme_light() +
+  theme(plot.title = element_text(size = 10)) +
+  scale_color_manual(values=colours_group) +
+  geom_vline(xintercept=5.5, linetype="dashed", color = "black", size=0.3) +
+  scale_x_continuous(breaks = breaks_r) +
+  ylab("Attentivness") +
+  theme(legend.position = "none") +
+  theme(axis.title.x = element_text(size=9),axis.title.y = element_text(size=9)) +
+  geom_line(data = arc.df1, aes(x=Round+1.5, y=Confidence+640), linetype="solid", size = 0.3, inherit.aes = FALSE) +
+  annotate("text",x = 1.5, y = 680, label = "***", color = "black", size=4) +
+  geom_line(data = arc.df1, aes(x=Round+2.5, y=Confidence+900), linetype="solid", size = 0.3, inherit.aes = FALSE) +
+  annotate("text",x = 2.5, y = 940, label = "***", color = "black", size=4)
+
+p5 <- ggplot(data, aes(x = Round, y = Proficiency, group = Group)) + 
+  coord_cartesian(ylim = meas.scale) +
+  stat_summary(aes(color=Group,shape=Group),fun.data = "mean_cl_normal", geom="point", size=1.5, position = position_dodge(0.6)) +
+  stat_summary(aes(color=Group),fun.data = "mean_cl_normal", geom="errorbar",position = position_dodge(0.6),size=0.4, width=0.3 ) +
+  theme_light() +
+  theme(plot.title = element_text(size = 10)) +
+  scale_color_manual(values=colours_group) +
+  geom_vline(xintercept=5.5, linetype="dashed", color = "black", size=0.3) +
+  scale_x_continuous(breaks = breaks_r) +
+  ylab("Proficiency") +
+  theme(legend.position = "none") +
+  theme(axis.title.x = element_text(size=9),axis.title.y = element_text(size=9)) +
+  geom_line(data = arc.df1, aes(x=Round+1.5, y=Confidence+560), linetype="solid", size = 0.3, inherit.aes = FALSE) +
+  annotate("text",x = 1.5, y = 600, label = "***", color = "black", size=4) +
+  geom_line(data = arc.df1, aes(x=Round+2.5, y=Confidence+900), linetype="solid", size = 0.3, inherit.aes = FALSE) +
+  annotate("text",x = 2.5, y = 940, label = "***", color = "black", size=4)
+
+p6 <- ggplot(data, aes(x = Round, y = Eagerness.to.learn, group = Group)) + 
+  coord_cartesian(ylim = meas.scale) +
+  stat_summary(aes(color=Group,shape=Group),fun.data = "mean_cl_normal", geom="point", size=1.5, position = position_dodge(0.6)) +
+  stat_summary(aes(color=Group),fun.data = "mean_cl_normal", geom="errorbar",position = position_dodge(0.6),size=0.4, width=0.3 ) +
+  theme_light() +
+  theme(plot.title = element_text(size = 10)) +
+  scale_color_manual(values=colours_group) +
+  geom_vline(xintercept=5.5, linetype="dashed", color = "black", size=0.3) +
+  scale_x_continuous(breaks = breaks_r) +
+  ylab("Eagerness to Learn") +
+  theme(legend.position = "none") +
+  theme(axis.title.x = element_text(size=9),axis.title.y = element_text(size=9)) +
+  geom_line(data = arc.df1, aes(x=Round+1.5, y=Confidence+640), linetype="solid", size = 0.3, inherit.aes = FALSE) +
+  annotate("text",x = 1.5, y = 680, label = "***", color = "black", size=4) +
+  geom_line(data = arc.df1, aes(x=Round+2.5, y=Confidence+840), linetype="solid", size = 0.3, inherit.aes = FALSE) +
+  annotate("text",x = 2.5, y = 880, label = "***", color = "black", size=4) +
+  geom_line(data = arc.df1, aes(x=Round+3.5, y=Confidence+880), linetype="solid", size = 0.3, inherit.aes = FALSE) +
+  annotate("text",x = 3.5, y = 920, label = "**", color = "black", size=4) +
+  geom_line(data = arc.df1, aes(x=Round+4.5, y=Confidence+920), linetype="solid", size = 0.3, inherit.aes = FALSE) +
+  annotate("text",x = 4.5, y = 960, label = "*", color = "black", size=4) +
+  geom_line(data = arc.df3, aes(x=Round+3.70, y=Confidence+270), linetype="solid", size = 0.3, inherit.aes = FALSE) +
+  annotate("text",x = 3.5, y = 120, label = "*", color = "black", size=4)
+
+p7 <- ggplot(data, aes(x = Round, y = Being.goal.driven, group = Group)) + 
+  coord_cartesian(ylim = meas.scale) +
+  stat_summary(aes(color=Group,shape=Group),fun.data = "mean_cl_normal", geom="point", size=1.5, position = position_dodge(0.6)) +
+  stat_summary(aes(color=Group),fun.data = "mean_cl_normal", geom="errorbar",position = position_dodge(0.6),size=0.4, width=0.3 ) +
+  theme_light() +
+  theme(plot.title = element_text(size = 10)) +
+  scale_color_manual(values=colours_group) +
+  geom_vline(xintercept=5.5, linetype="dashed", color = "black", size=0.3) +
+  scale_x_continuous(breaks = breaks_r) +
+  ylab("Being Goal-driven") +
+  theme(legend.position = "none") +
+  theme(axis.title.x = element_text(size=9),axis.title.y = element_text(size=9)) +
+  geom_line(data = arc.df1, aes(x=Round+1.5, y=Confidence+640), linetype="solid", size = 0.3, inherit.aes = FALSE) +
+  annotate("text",x = 1.5, y = 680, label = "***", color = "black", size=4) +
+  geom_line(data = arc.df1, aes(x=Round+2.5, y=Confidence+880), linetype="solid", size = 0.3, inherit.aes = FALSE) +
+  annotate("text",x = 2.5, y = 920, label = "***", color = "black", size=4) +
+  geom_line(data = arc.df2, aes(x=Round+4, y=Confidence+480), linetype="solid", size = 0.3, inherit.aes = FALSE) +
+  annotate("text",x = 4, y = 340, label = "*", color = "black", size=4) +
+  geom_line(data = arc.df3, aes(x=Round+3.70, y=Confidence+260), linetype="solid", size = 0.3, inherit.aes = FALSE) +
+  annotate("text",x = 3.5, y = 120, label ="*", color = "black", size=4)
+
+p8 <- ggplot(data, aes(x = Round, y = Severity, group = Group)) + 
+  coord_cartesian(ylim = meas.scale) +
+  stat_summary(aes(color=Group,shape=Group),fun.data = "mean_cl_normal", geom="point", size=1.5, position = position_dodge(0.6)) +
+  stat_summary(aes(color=Group),fun.data = "mean_cl_normal", geom="errorbar",position = position_dodge(0.6),size=0.4, width=0.3 ) +
+  theme_linedraw() +
+  theme(plot.title = element_text(size = 10)) +
+  scale_color_manual(values=colours_group) +
+  geom_vline(xintercept=5.5, linetype="dashed", color = "black", size=0.3) +
+  scale_x_continuous(breaks = breaks_r) +
+  ylab("Severity of Mistake") +
+  theme(legend.position = "none") +
+  theme(axis.title.x = element_text(size=9),axis.title.y = element_text(size=9))
+
+pp <- ggplot(data, aes(x = Round, y = Severity, group = Group)) + 
+  coord_cartesian(ylim = meas.scale) +
+  stat_summary(aes(color=Group,shape=Group),fun.data = "mean_cl_normal", geom="point", size=1.5, position = position_dodge(0.6)) +
+  stat_summary(aes(color=Group),fun.data = "mean_cl_normal", geom="errorbar",position = position_dodge(0.6),size=0.4, width=0.3 ) +
+  theme_light() + guides(colour = guide_legend(nrow = 1)) +
+  theme(legend.direction = "horizontal") +
+  scale_color_manual(name  ="Condition", values=colours_group,labels= labs_l) +
+  scale_shape_discrete(name  ="Condition",breaks=c("1","2","3"),labels= labs_l)
+legend <- cowplot::get_legend(pp)
+lay <- rbind(c(1,1),
+             c(2,3),
+             c(4,5),
+             c(6,7),
+             c(8,9))
+grid.arrange(legend,p1,p2,p3,p4,p5,p6,p7,p8,heights=c(0.5,2,2,2,2),ncol = 2,nrow = 5,layout_matrix = lay)
+```
+
+```{r}
+# Differences between two Rounds (round 1-5) in Fig. 11
+
+### Run only one of these for one measure
+data.wide = dcast(data[with(data, Round != 6), ], id ~ Round, value.var="Confidence",fun.aggregate=mean) 
+data.wide = dcast(data[with(data, Round != 6), ], id ~ Round, value.var="Calmness",fun.aggregate=mean) 
+data.wide = dcast(data[with(data, Round != 6), ], id ~ Round, value.var="Liking.the.task",fun.aggregate=mean) 
+data.wide = dcast(data[with(data, Round != 6), ], id ~ Round, value.var="Attentivness",fun.aggregate=mean) 
+data.wide = dcast(data[with(data, Round != 6), ], id ~ Round, value.var="Proficiency",fun.aggregate=mean) 
+data.wide = dcast(data[with(data, Round != 6), ], id ~ Round, value.var="Eagerness.to.learn",fun.aggregate=mean) 
+data.wide = dcast(data[with(data, Round != 6), ], id ~ Round, value.var="Being.goal.driven",fun.aggregate=mean) 
+data.wide = dcast(data[with(data, Round != 6), ], id ~ Round, value.var="Severity",fun.aggregate=mean) 
+
+colnames(data.wide)[2] <- "One"
+colnames(data.wide)[3] <- "Two"
+colnames(data.wide)[4] <- "Three"
+colnames(data.wide)[5] <- "Four"
+colnames(data.wide)[6] <- "Five"
+t1 = t.test(data.wide$One,data.wide$Two, paired=TRUE, alternative = "less")
+t2 = t.test(data.wide$Two,data.wide$Three, paired=TRUE, alternative = "less")
+t3 = t.test(data.wide$Three,data.wide$Four, paired=TRUE, alternative = "less")
+t4 = t.test(data.wide$Four,data.wide$Five, paired=TRUE, alternative = "less")
+p.adjust(c(t1$p.value, t2$p.value, t3$p.value, t4$p.value), method="holm")
+```
+
+```{r}
+# Differences between two same error types (round 1 or 2 vs 6) in Fig. 11
+
+### Run only one of these for one measure
+data.wide.1 = dcast(data[with(data, Group == 3 & (Round == 1 | Round == 6)), ], id ~ Round, value.var="Confidence",fun.aggregate=mean) 
+data.wide.2 = dcast(data[with(data, Group == 2 & (Round == 2 | Round == 6)), ], id ~ Round, value.var="Confidence",fun.aggregate=mean) 
+
+data.wide.1 = dcast(data[with(data, Group == 3 & (Round == 1 | Round == 6)), ], id ~ Round, value.var="Calmness",fun.aggregate=mean) 
+data.wide.2 = dcast(data[with(data, Group == 2 & (Round == 2 | Round == 6)), ], id ~ Round, value.var="Calmness",fun.aggregate=mean) 
+
+data.wide.1 = dcast(data[with(data, Group == 3 & (Round == 1 | Round == 6)), ], id ~ Round, value.var="Liking.the.task",fun.aggregate=mean) 
+data.wide.2 = dcast(data[with(data, Group == 2 & (Round == 2 | Round == 6)), ], id ~ Round, value.var="Liking.the.task",fun.aggregate=mean) 
+
+data.wide.1 = dcast(data[with(data, Group == 3 & (Round == 1 | Round == 6)), ], id ~ Round, value.var="Attentivness",fun.aggregate=mean) 
+data.wide.2 = dcast(data[with(data, Group == 2 & (Round == 2 | Round == 6)), ], id ~ Round, value.var="Attentivness",fun.aggregate=mean) 
+
+data.wide.1 = dcast(data[with(data, Group == 3 & (Round == 1 | Round == 6)), ], id ~ Round, value.var="Proficiency",fun.aggregate=mean) 
+data.wide.2 = dcast(data[with(data, Group == 2 & (Round == 2 | Round == 6)), ], id ~ Round, value.var="Proficiency",fun.aggregate=mean) 
+
+data.wide.1 = dcast(data[with(data, Group == 3 & (Round == 1 | Round == 6)), ], id ~ Round, value.var="Eagerness.to.learn",fun.aggregate=mean) 
+data.wide.2 = dcast(data[with(data, Group == 2 & (Round == 2 | Round == 6)), ], id ~ Round, value.var="Eagerness.to.learn",fun.aggregate=mean) 
+
+data.wide.1 = dcast(data[with(data, Group == 3 & (Round == 1 | Round == 6)), ], id ~ Round, value.var="Being.goal.driven",fun.aggregate=mean) 
+data.wide.2 = dcast(data[with(data, Group == 2 & (Round == 2 | Round == 6)), ], id ~ Round, value.var="Being.goal.driven",fun.aggregate=mean) 
+
+colnames(data.wide.1)[2] <- "First"
+colnames(data.wide.1)[3] <- "Second"
+colnames(data.wide.2)[2] <- "First"
+colnames(data.wide.2)[3] <- "Second"
+t1 = t.test(data.wide.1$First,data.wide.1$Second, paired=TRUE, alternative = "greater")
+t2 = t.test(data.wide.2$First,data.wide.2$Second, paired=TRUE, alternative = "less")
+p.adjust(c(t1$p.value, t2$p.value), method="none")
+```
+
+```{r}
+# LMMs predicting the robots' attributes: confidence, calmness, liking the task, attention to the task, proficiency, eagerness to learn, and being goal-driven while learning
+
+m = lmer(Confidence ~ (Encounter + Severity + Appearance + Age + Gender_p + Gender_n + Extraversion + Agreeableness + Conscientiousness + Emotional.Stability + Openness.to.Experiences + Benevolence + Integrity + Competence + Trusting.Stance) + (1|id), data=data,REML=FALSE)
+step(m,reduce.fixed = TRUE)
+m = lmer(Confidence ~ (Encounter + Severity + Extraversion + Trusting.Stance) + (1|id), data=data,REML=FALSE)
+summary(m)
+
+m = lmer(Calmness ~ (Encounter + Severity + Appearance  + Age + Gender_p + Gender_n + Extraversion + Agreeableness + Conscientiousness + Emotional.Stability + Openness.to.Experiences + Benevolence + Integrity + Competence + Trusting.Stance) + (1|id), data=data,REML=FALSE)
+step(m,reduce.fixed = TRUE)
+m = lmer(Calmness ~ (Severity + Extraversion + Emotional.Stability + Trusting.Stance) + (1|id), data=data,REML=FALSE)
+summary(m)
+
+m = lmer(Liking.the.task ~ (Encounter + Severity + Appearance  + Age + Gender_p + Gender_n + Extraversion + Agreeableness + Conscientiousness + Emotional.Stability + Openness.to.Experiences + Benevolence + Integrity + Competence + Trusting.Stance) + (1|id), data=data,REML=FALSE)
+step(m,reduce.fixed = TRUE)
+m = lmer(Liking.the.task ~ (Encounter + Severity + Openness.to.Experiences +  Competence) + (1|id), data=data,REML=FALSE)
+summary(m)
+
+m = lmer(Attentivness ~ (Encounter + Severity + Appearance  + Age + Gender_p + Gender_n + Extraversion + Agreeableness + Conscientiousness + Emotional.Stability + Openness.to.Experiences + Benevolence + Integrity + Competence + Trusting.Stance) + (1|id), data=data,REML=FALSE)
+step(m,reduce.fixed = TRUE)
+m = lmer(Attentivness ~ (Encounter + Severity + Extraversion + Conscientiousness + Trusting.Stance) + (1|id), data=data,REML=FALSE)
+summary(m)
+
+m = lmer(Proficiency ~ (Encounter + Severity + Appearance  + Age + Gender_p + Gender_n + Extraversion + Agreeableness + Conscientiousness + Emotional.Stability + Openness.to.Experiences + Benevolence + Integrity + Competence + Trusting.Stance) + (1|id), data=data,REML=FALSE)
+step(m,reduce.fixed = TRUE)
+m = lmer(Proficiency ~ (Encounter + Severity + Openness.to.Experiences + Trusting.Stance) + (1|id), data=data,REML=FALSE)
+summary(m)
+
+m = lmer(Eagerness.to.learn ~ (Encounter + Severity + Appearance  + Age + Gender_p + Gender_n + Extraversion + Agreeableness + Conscientiousness + Emotional.Stability + Openness.to.Experiences + Benevolence + Integrity + Competence + Trusting.Stance) + (1|id), data=data,REML=FALSE)
+step(m,reduce.fixed = TRUE)
+m = lmer(Eagerness.to.learn ~ (Encounter + Severity + Openness.to.Experiences + Competence) + (1|id), data=data,REML=FALSE)
+summary(m)
+
+m = lmer(Being.goal.driven ~ (Encounter + Severity + Appearance  + Age + Gender_p + Gender_n + Extraversion + Agreeableness + Conscientiousness + Emotional.Stability + Openness.to.Experiences + Benevolence + Integrity + Competence + Trusting.Stance) + (1|id), data=data,REML=FALSE)
+step(m,reduce.fixed = TRUE)
+m = lmer(Being.goal.driven ~ (Encounter + Severity + Extraversion + Conscientiousness + Trusting.Stance) + (1|id), data=data,REML=FALSE)
+summary(m)
+```
+
+```{r}
+# Fig. 12
+meas.scale <- c(0,100)
+t <- seq(0, 180, by = 1) * pi / 180
+r1 <- 0.5
+r2 <- 1
+r3 <- 1.2
+x1 <- r1 * cos(t)
+y1 <- r1*15 * sin(t)
+y1[20:162] <- y1[20]
+arc.df1 <- data.frame(Round = x1, Confidence = y1)
+x2 <- r1 *2 * cos(t)
+y2 <- r1 * 2 * 9 * sin(t)
+y2[18:164] <- y2[18]
+arc.df2 <- data.frame(Round = x2, Confidence = y2)
+xlabels= c("Tidy","Untidy","Equal")
+w = 0.5
+colours_dress <- c("#762a83","#ff7f00")
+colours_b=append(colours_dress,c("#ffff33"))
+
+# Reordering
+data$Professional <- factor(data$Professional,
+                                    levels = c('Tidy','Untidy','Equal'))
+data$Skilled <- factor(data$Skilled,
+                               levels = c('Tidy','Untidy','Equal'))
+data$Experienced <- factor(data$Experienced,
+                                   levels = c('Tidy','Untidy','Equal'))
+data$Trust <- factor(data$Trust,
+                             levels = c('Tidy','Untidy','equal','Equal'))
+data$Authority <- factor(data$Authority,
+                                 levels = c('Tidy','Untidy','Equal'))
+
+p1 <- ggplot(data[with(data, Order == 1), ], aes(Professional, ..count..)) + 
+  geom_bar(aes(fill = Professional),position=position_dodge(), width=w) +
+  theme_light() +
+  scale_fill_manual(values = colours_b) +
+  ggtitle("Selected as more Professional:") +
+  theme(plot.title = element_text(size = 10),axis.title.y = element_text(size = 9),axis.title.x = element_text(size = 9)) +
+  xlab("Selected robot") +
+  ylab("Count") +
+  scale_x_discrete(labels= xlabels) +
+  theme(legend.position = "none") +
+  coord_cartesian(ylim = meas.scale) +
+  geom_line(data = arc.df1, aes(x=Round+1.5, y=Confidence+55), linetype="solid", size = 0.3, inherit.aes = FALSE) +
+  annotate("text",x = 1.5, y = 58, label = "***", color = "black", size=4) +
+  geom_line(data = arc.df1, aes(x=Round+2.5, y=Confidence+73), linetype="solid", size = 0.3, inherit.aes = FALSE) +
+  annotate("text",x = 2.5, y = 76, label = "***", color = "black", size=4) +
+  geom_line(data = arc.df2, aes(x=Round+2, y=Confidence+81), linetype="solid", size = 0.3, inherit.aes = FALSE) +
+  annotate("text",x = 2, y = 85, label = "**", color = "black", size=4)
+
+p2 <- ggplot(data[with(data, Order == 1), ], aes(Skilled, ..count..)) + 
+  geom_bar(aes(fill = Skilled),position=position_dodge(), width=w) +
+  theme_light() +
+  scale_fill_manual(values = colours_b) +
+  ggtitle("Selected as more Skilled:") +
+  theme(plot.title = element_text(size = 10),axis.title.y = element_text(size = 9),axis.title.x = element_text(size = 9)) +
+  xlab("Selected robot") +
+  ylab("Count") +
+  scale_x_discrete(labels= xlabels) +
+  theme(legend.position = "none") +
+  coord_cartesian(ylim = meas.scale) +
+  #geom_line(data = arc.df1, aes(x=Round+1.5, y=Confidence+50), linetype="solid", size = 0.3, inherit.aes = FALSE) +
+  #annotate("text",x = 1.5, y = 53, label = "***", color = "black", size=4) +
+  geom_line(data = arc.df1, aes(x=Round+2.5, y=Confidence+79), linetype="solid", size = 0.3, inherit.aes = FALSE) +
+  annotate("text",x = 2.5, y = 82, label = "***", color = "black", size=4) +
+  geom_line(data = arc.df2, aes(x=Round+2, y=Confidence+85), linetype="solid", size = 0.3, inherit.aes = FALSE) +
+  annotate("text",x = 2, y = 88, label = "***", color = "black", size=4)
+
+p3 <- ggplot(data[with(data, Order == 1), ], aes(Experienced, ..count..)) + 
+  geom_bar(aes(fill = Experienced),position=position_dodge(), width=w) +
+  theme_light() +
+  scale_fill_manual(values = colours_b) +
+  ggtitle("Selected as more Experienced:") +
+  theme(plot.title = element_text(size = 10),axis.title.y = element_text(size = 9),axis.title.x = element_text(size = 9)) +
+  xlab("Selected robot") +
+  ylab("Count") +
+  scale_x_discrete(labels= xlabels) +
+  theme(legend.position = "none") +
+  coord_cartesian(ylim = meas.scale) +
+  #geom_line(data = arc.df1, aes(x=Round+1.5, y=Confidence+50), linetype="solid", size = 0.3, inherit.aes = FALSE) +
+  #annotate("text",x = 1.5, y = 53, label = "***", color = "black", size=4) +
+  geom_line(data = arc.df1, aes(x=Round+2.5, y=Confidence+82), linetype="solid", size = 0.3, inherit.aes = FALSE) +
+  annotate("text",x = 2.5, y = 85, label = "***", color = "black", size=4) +
+  geom_line(data = arc.df2, aes(x=Round+2, y=Confidence+88), linetype="solid", size = 0.3, inherit.aes = FALSE) +
+  annotate("text",x = 2, y = 91, label = "***", color = "black", size=4)
+
+p4 <- ggplot(data[with(data, Order == 1), ], aes(Authority, ..count..)) + 
+  geom_bar(aes(fill = Authority),position=position_dodge(), width=w) +
+  theme_light() +
+  scale_fill_manual(values = colours_b) +
+  ggtitle("Selected as having more Authority:") +
+  theme(plot.title = element_text(size = 10),axis.title.y = element_text(size = 9),axis.title.x = element_text(size = 9)) +
+  xlab("Selected robot") +
+  ylab("Count") +
+  scale_x_discrete(labels= xlabels) +
+  theme(legend.position = "none") +
+  coord_cartesian(ylim = meas.scale) +
+  #geom_line(data = arc.df1, aes(x=Round+1.5, y=Confidence+50), linetype="solid", size = 0.3, inherit.aes = FALSE) +
+  #annotate("text",x = 1.5, y = 53, label = "***", color = "black", size=4) +
+  geom_line(data = arc.df1, aes(x=Round+2.5, y=Confidence+90), linetype="solid", size = 0.3, inherit.aes = FALSE) +
+  annotate("text",x = 2.5, y = 93, label = "***", color = "black", size=4) +
+  geom_line(data = arc.df2, aes(x=Round+2, y=Confidence+96), linetype="solid", size = 0.3, inherit.aes = FALSE) +
+  annotate("text",x = 2, y = 99, label = "***", color = "black", size=4)
+
+p5 <- ggplot(data[with(data, Order == 1), ], aes(Trust, ..count..)) + 
+  geom_bar(aes(fill = Trust),position=position_dodge(), width=w) +
+  theme_light() +
+  scale_fill_manual(values = colours_b) +
+  ggtitle("Selected to Trust more:") +
+  theme(plot.title = element_text(size = 10),axis.title.y = element_text(size = 9),axis.title.x = element_text(size = 9)) +
+  xlab("Selected robot") +
+  ylab("Count") +
+  scale_x_discrete(labels= xlabels) +
+  theme(legend.position = "none") +
+  coord_cartesian(ylim = meas.scale) +
+  #geom_line(data = arc.df1, aes(x=Round+1.5, y=Confidence+50), linetype="solid", size = 0.3, inherit.aes = FALSE) +
+  #annotate("text",x = 1.5, y = 53, label = "***", color = "black", size=4) +
+  geom_line(data = arc.df1, aes(x=Round+2.5, y=Confidence+84), linetype="solid", size = 0.3, inherit.aes = FALSE) +
+  annotate("text",x = 2.5, y = 87, label = "***", color = "black", size=4) +
+  geom_line(data = arc.df2, aes(x=Round+2, y=Confidence+90), linetype="solid", size = 0.3, inherit.aes = FALSE) +
+  annotate("text",x = 2, y = 93, label = "***", color = "black", size=4)
+
+lay <- rbind(c(1,1,2,2),
+             c(3,3,4,4),
+             c(NA,5,5,NA))
+grid.arrange(p1,p2,p3,p4,p5,heights=c(2,2,2),ncol = 4,nrow = 3,layout_matrix = lay)
+```
+
+```{r}
+# Post hoc binomial tests with correction for multiple comparisons in Fig. 12
+# Also, one-sided chi-squared tests for differences between tidy and untidy robot
+data_temp = data[with(data, Order == 1), ]
+
+aa = prop.test(x = c(sum(data_temp$Professional == "Equal"), sum(data_temp$Professional == "Untidy")), n = c(sum(data_temp$Professional == "Equal")+sum(data_temp$Professional == "Untidy"), sum(data_temp$Professional == "Equal")+sum(data_temp$Professional == "Untidy")), alternative = "greater", correct = F)
+bb = prop.test(x = c(sum(data_temp$Professional == "Equal"), sum(data_temp$Professional == "Tidy")), n = c(sum(data_temp$Professional == "Equal")+sum(data_temp$Professional == "Tidy"), sum(data_temp$Professional == "Equal")+sum(data_temp$Professional == "Tidy")), alternative = "greater", correct = F)
+cc = prop.test(x = c(sum(data_temp$Professional == "Untidy"), sum(data_temp$Professional == "Tidy")), n = c(sum(data_temp$Professional == "Untidy")+sum(data_temp$Professional == "Tidy"), sum(data_temp$Professional == "Untidy")+sum(data_temp$Professional == "Tidy")), alternative = "less", correct = F)
+p.adjust(c(aa$p.value, bb$p.value, cc$p.value), method="holm")
+cc
+
+aa = prop.test(x = c(sum(data_temp$Skilled == "Equal"), sum(data_temp$Skilled == "Untidy")), n = c(sum(data_temp$Skilled == "Equal")+sum(data_temp$Skilled == "Untidy"), sum(data_temp$Skilled == "Equal")+sum(data_temp$Skilled == "Untidy")), alternative = "greater", correct = F)
+bb = prop.test(x = c(sum(data_temp$Skilled == "Equal"), sum(data_temp$Skilled == "Tidy")), n = c(sum(data_temp$Skilled == "Equal")+sum(data_temp$Skilled == "Tidy"), sum(data_temp$Skilled == "Equal")+sum(data_temp$Skilled == "Tidy")), alternative = "greater", correct = F)
+cc = prop.test(x = c(sum(data_temp$Skilled == "Untidy"), sum(data_temp$Skilled == "Tidy")), n = c(sum(data_temp$Skilled == "Untidy")+sum(data_temp$Skilled == "Tidy"), sum(data_temp$Skilled == "Untidy")+sum(data_temp$Skilled == "Tidy")), alternative = "less", correct = F)
+p.adjust(c(aa$p.value, bb$p.value, cc$p.value), method="holm")
+cc
+
+aa = prop.test(x = c(sum(data_temp$Experienced == "Equal"), sum(data_temp$Experienced == "Untidy")), n = c(sum(data_temp$Experienced == "Equal")+sum(data_temp$Experienced == "Untidy"), sum(data_temp$Experienced == "Equal")+sum(data_temp$Experienced == "Untidy")), alternative = "greater", correct = F)
+bb = prop.test(x = c(sum(data_temp$Experienced == "Equal"), sum(data_temp$Experienced == "Tidy")), n = c(sum(data_temp$Experienced == "Equal")+sum(data_temp$Experienced == "Tidy"), sum(data_temp$Experienced == "Equal")+sum(data_temp$Experienced == "Tidy")), alternative = "greater", correct = F)
+cc = prop.test(x = c(sum(data_temp$Experienced == "Untidy"), sum(data_temp$Experienced == "Tidy")), n = c(sum(data_temp$Experienced == "Untidy")+sum(data_temp$Experienced == "Tidy"), sum(data_temp$Experienced == "Untidy")+sum(data_temp$Experienced == "Tidy")), alternative = "less", correct = F)
+p.adjust(c(aa$p.value, bb$p.value, cc$p.value), method="holm")
+cc
+
+aa = prop.test(x = c(sum(data_temp$Authority == "Equal"), sum(data_temp$Authority == "Untidy")), n = c(sum(data_temp$Authority == "Equal")+sum(data_temp$Authority == "Untidy"), sum(data_temp$Authority == "Equal")+sum(data_temp$Authority == "Untidy")), alternative = "greater", correct = F)
+bb = prop.test(x = c(sum(data_temp$Authority == "Equal"), sum(data_temp$Authority == "Tidy")), n = c(sum(data_temp$Authority == "Equal")+sum(data_temp$Authority == "Tidy"), sum(data_temp$Authority == "Equal")+sum(data_temp$Authority == "Tidy")), alternative = "greater", correct = F)
+cc = prop.test(x = c(sum(data_temp$Authority == "Untidy"), sum(data_temp$Authority == "Tidy")), n = c(sum(data_temp$Authority == "Untidy")+sum(data_temp$Authority == "Tidy"), sum(data_temp$Authority == "Untidy")+sum(data_temp$Authority == "Tidy")), alternative = "less", correct = F)
+p.adjust(c(aa$p.value, bb$p.value, cc$p.value), method="holm")
+cc
+
+aa = prop.test(x = c(sum(data_temp$Trust == "Equal"), sum(data_temp$Trust == "Untidy")), n = c(sum(data_temp$Trust == "Equal")+sum(data_temp$Trust == "Untidy"), sum(data_temp$Trust == "Equal")+sum(data_temp$Trust == "Untidy")), alternative = "greater", correct = F)
+bb = prop.test(x = c(sum(data_temp$Trust == "Equal"), sum(data_temp$Trust == "Tidy")), n = c(sum(data_temp$Trust == "Equal")+sum(data_temp$Trust == "Tidy"), sum(data_temp$Trust == "Equal")+sum(data_temp$Trust == "Tidy")), alternative = "greater", correct = F)
+cc = prop.test(x = c(sum(data_temp$Trust == "Untidy"), sum(data_temp$Trust == "Tidy")), n = c(sum(data_temp$Trust == "Untidy")+sum(data_temp$Trust == "Tidy"), sum(data_temp$Trust == "Untidy")+sum(data_temp$Trust == "Tidy")), alternative = "less", correct = F)
+p.adjust(c(aa$p.value, bb$p.value, cc$p.value), method="holm")
+cc
+```
+
+```{r}
+# Fig. 13
+meas.scale <- c(0,1000)
+t <- seq(0, 180, by = 1) * pi / 180
+r1 <- 0.18
+r2 <- 1
+r3 <- 1.5
+x1 <- r1 * cos(t)
+y1 <- r1*100 * sin(t)
+y1[40:142] <- y1[40]
+arc.df1 <- data.frame(Round = x1, Confidence = y1)
+colours_encounter <- c("#d01c8b","#4d4d4d")
+breaks_r <- as.numeric(c("1","2 ","3","4","5 ","6"))
+
+p1 <- ggplot(data, aes(x = Round, y = Confidence, group = Encounter)) + 
+  coord_cartesian(ylim = meas.scale) +
+  stat_summary(aes(color=Encounter,shape=Encounter),fun.data = "mean_cl_normal", geom="point", size=1.5, position = position_dodge(0.7)) +
+  stat_summary(aes(color=Encounter),fun.data = "mean_cl_normal", geom="errorbar",position = position_dodge(0.7),size=0.4, width=0.3 ) +
+  theme_light() +
+  theme(plot.title = element_text(size = 10)) +
+  theme(axis.title.x = element_text(size=9),axis.title.y = element_text(size=9)) +
+  scale_color_manual(values=colours_encounter) +
+  #geom_vline(xintercept=5.5, linetype="dashed", color = "black", size=0.3) +
+  scale_x_continuous(breaks = breaks_r) +
+  ylab("Confidence") +
+  theme(legend.position = "none") +
+  geom_line(data = arc.df1, aes(x=Round+3, y=Confidence+840), linetype="solid", size = 0.3, inherit.aes = FALSE) +
+  annotate("text",x = 3, y = 870, label = "*", color = "black", size=4)
+
+p2 <- ggplot(data, aes(x = Round, y = Calmness, group = Encounter)) + 
+  coord_cartesian(ylim = meas.scale) +
+  stat_summary(aes(color=Encounter,shape=Encounter),fun.data = "mean_cl_normal", geom="point", size=1.5, position = position_dodge(0.6)) +
+  stat_summary(aes(color=Encounter),fun.data = "mean_cl_normal", geom="errorbar",position = position_dodge(0.6),size=0.4, width=0.3 ) +
+  theme_light() +
+  theme(plot.title = element_text(size = 10)) +
+  theme(axis.title.x = element_text(size=9),axis.title.y = element_text(size=9)) +
+  scale_color_manual(values=colours_encounter) +
+  #geom_vline(xintercept=5.5, linetype="dashed", color = "black", size=0.3) +
+  scale_x_continuous(breaks = breaks_r) +
+  ylab("Calmness") +
+  theme(legend.position = "none") +
+  geom_line(data = arc.df1, aes(x=Round+1, y=Confidence+640), linetype="solid", size = 0.3, inherit.aes = FALSE) +
+  annotate("text",x = 1, y = 670, label = "***", color = "black", size=4) +
+  geom_line(data = arc.df1, aes(x=Round+6, y=Confidence+740), linetype="solid", size = 0.3, inherit.aes = FALSE) +
+  annotate("text",x = 6, y = 770, label = "***", color = "black", size=4)
+
+p3 <- ggplot(data, aes(x = Round, y = Liking.the.task, group = Encounter)) + 
+  coord_cartesian(ylim = meas.scale) +
+  stat_summary(aes(color=Encounter,shape=Encounter),fun.data = "mean_cl_normal", geom="point", size=1.5, position = position_dodge(0.6)) +
+  stat_summary(aes(color=Encounter),fun.data = "mean_cl_normal", geom="errorbar",position = position_dodge(0.6),size=0.4, width=0.3 ) +
+  theme_light() +
+  theme(plot.title = element_text(size = 10)) +
+  theme(axis.title.x = element_text(size=9),axis.title.y = element_text(size=9)) +
+  scale_color_manual(values=colours_encounter) +
+  #geom_vline(xintercept=5.5, linetype="dashed", color = "black", size=0.3) +
+  scale_x_continuous(breaks = breaks_r) +
+  ylab("Liking the task") +
+  theme(legend.position = "none") +
+  geom_line(data = arc.df1, aes(x=Round+1, y=Confidence+600), linetype="solid", size = 0.3, inherit.aes = FALSE) +
+  annotate("text",x = 1, y = 630, label = "**", color = "black", size=4) +
+  geom_line(data = arc.df1, aes(x=Round+2, y=Confidence+660), linetype="solid", size = 0.3, inherit.aes = FALSE) +
+  annotate("text",x = 2, y = 690, label = "***", color = "black", size=4) +
+  geom_line(data = arc.df1, aes(x=Round+3, y=Confidence+780), linetype="solid", size = 0.3, inherit.aes = FALSE) +
+  annotate("text",x = 3, y = 810, label = "*", color = "black", size=4) +
+  geom_line(data = arc.df1, aes(x=Round+4, y=Confidence+790), linetype="solid", size = 0.3, inherit.aes = FALSE) +
+  annotate("text",x = 4, y = 820, label = "*", color = "black", size=4)
+
+p4 <- ggplot(data, aes(x = Round, y = Attentivness, group = Encounter)) + 
+  coord_cartesian(ylim = meas.scale) +
+  stat_summary(aes(color=Encounter,shape=Encounter),fun.data = "mean_cl_normal", geom="point", size=1.5, position = position_dodge(0.6)) +
+  stat_summary(aes(color=Encounter),fun.data = "mean_cl_normal", geom="errorbar",position = position_dodge(0.6),size=0.4, width=0.3 ) +
+  theme_light() +
+  theme(plot.title = element_text(size = 10)) +
+  theme(axis.title.x = element_text(size=9),axis.title.y = element_text(size=9)) +
+  scale_color_manual(values=colours_encounter) +
+  #geom_vline(xintercept=5.5, linetype="dashed", color = "black", size=0.3) +
+  scale_x_continuous(breaks = breaks_r) +
+  ylab("Attentivness") +
+  theme(legend.position = "none") +
+  geom_line(data = arc.df1, aes(x=Round+1, y=Confidence+490), linetype="solid", size = 0.3, inherit.aes = FALSE) +
+  annotate("text",x = 1, y = 520, label = "**", color = "black", size=4) +
+  geom_line(data = arc.df1, aes(x=Round+3, y=Confidence+900), linetype="solid", size = 0.3, inherit.aes = FALSE) +
+  annotate("text",x = 3, y = 930, label = "**", color = "black", size=4)
+
+p5 <- ggplot(data, aes(x = Round, y = Proficiency, group = Encounter)) + 
+  coord_cartesian(ylim = meas.scale) +
+  stat_summary(aes(color=Encounter,shape=Encounter),fun.data = "mean_cl_normal", geom="point", size=1.5, position = position_dodge(0.6)) +
+  stat_summary(aes(color=Encounter),fun.data = "mean_cl_normal", geom="errorbar",position = position_dodge(0.6),size=0.4, width=0.3 ) +
+  theme_light() +
+  theme(plot.title = element_text(size = 10)) +
+  theme(axis.title.x = element_text(size=9),axis.title.y = element_text(size=9)) +
+  scale_color_manual(values=colours_encounter) +
+  #geom_vline(xintercept=5.5, linetype="dashed", color = "black", size=0.3) +
+  scale_x_continuous(breaks = breaks_r) +
+  ylab("Proficiency") +
+  theme(legend.position = "none") +
+  geom_line(data = arc.df1, aes(x=Round+3, y=Confidence+900), linetype="solid", size = 0.3, inherit.aes = FALSE) +
+  annotate("text",x = 3, y = 930, label = "***", color = "black", size=4)
+
+p6 <- ggplot(data, aes(x = Round, y = Eagerness.to.learn, group = Encounter)) + 
+  coord_cartesian(ylim = meas.scale) +
+  stat_summary(aes(color=Encounter,shape=Encounter),fun.data = "mean_cl_normal", geom="point", size=1.5, position = position_dodge(0.6)) +
+  stat_summary(aes(color=Encounter),fun.data = "mean_cl_normal", geom="errorbar",position = position_dodge(0.6),size=0.4, width=0.3 ) +
+  theme_light() +
+  theme(plot.title = element_text(size = 10)) +
+  theme(axis.title.x = element_text(size=9),axis.title.y = element_text(size=9)) +
+  scale_color_manual(values=colours_encounter) +
+  #geom_vline(xintercept=5.5, linetype="dashed", color = "black", size=0.3) +
+  scale_x_continuous(breaks = breaks_r) +
+  ylab("Eagerness to Learn") +
+  theme(legend.position = "none") +
+  geom_line(data = arc.df1, aes(x=Round+1, y=Confidence+600), linetype="solid", size = 0.3, inherit.aes = FALSE) +
+  annotate("text",x = 1, y = 630, label = "***", color = "black", size=4) +
+  geom_line(data = arc.df1, aes(x=Round+2, y=Confidence+660), linetype="solid", size = 0.3, inherit.aes = FALSE) +
+  annotate("text",x = 2, y = 690, label = "*", color = "black", size=4) +
+  geom_line(data = arc.df1, aes(x=Round+3, y=Confidence+850), linetype="solid", size = 0.3, inherit.aes = FALSE) +
+  annotate("text",x = 3, y = 880, label = "**", color = "black", size=4)
+
+p7 <- ggplot(data, aes(x = Round, y = Being.goal.driven, group = Encounter)) + 
+  coord_cartesian(ylim = meas.scale) +
+  stat_summary(aes(color=Encounter,shape=Encounter),fun.data = "mean_cl_normal", geom="point", size=1.5, position = position_dodge(0.6)) +
+  stat_summary(aes(color=Encounter),fun.data = "mean_cl_normal", geom="errorbar",position = position_dodge(0.6),size=0.4, width=0.3 ) +
+  theme_light() +
+  theme(plot.title = element_text(size = 10)) +
+  theme(axis.title.x = element_text(size=9),axis.title.y = element_text(size=9)) +
+  scale_color_manual(values=colours_encounter) +
+  #geom_vline(xintercept=5.5, linetype="dashed", color = "black", size=0.3) +
+  scale_x_continuous(breaks = breaks_r) +
+  ylab("Being Goal-driven") +
+  theme(legend.position = "none") +
+  geom_line(data = arc.df1, aes(x=Round+1, y=Confidence+580), linetype="solid", size = 0.3, inherit.aes = FALSE) +
+  annotate("text",x = 1, y = 610, label = "***", color = "black", size=4) +
+  geom_line(data = arc.df1, aes(x=Round+3, y=Confidence+900), linetype="solid", size = 0.3, inherit.aes = FALSE) +
+  annotate("text",x = 3, y = 930, label = "***", color = "black", size=4) +
+  geom_line(data = arc.df1, aes(x=Round+4, y=Confidence+900), linetype="solid", size = 0.3, inherit.aes = FALSE) +
+  annotate("text",x = 4, y = 930, label = "**", color = "black", size=4)
+
+p8 <- ggplot(data, aes(x = Round, y = Severity, group = Encounter)) + 
+  coord_cartesian(ylim = meas.scale) +
+  stat_summary(aes(color=Encounter,shape=Encounter),fun.data = "mean_cl_normal", geom="point", size=1.5, position = position_dodge(0.6)) +
+  stat_summary(aes(color=Encounter),fun.data = "mean_cl_normal", geom="errorbar",position = position_dodge(0.6),size=0.4, width=0.3 ) +
+  theme_linedraw() +
+  theme(plot.title = element_text(size = 10)) +
+  theme(axis.title.x = element_text(size=9),axis.title.y = element_text(size=9)) +
+  scale_color_manual(values=colours_encounter) +
+  #geom_vline(xintercept=5.5, linetype="dashed", color = "black", size=0.3) +
+  scale_x_continuous(breaks = breaks_r) +
+  ylab("Severity of Mistake") +
+  theme(legend.position = "none") 
+
+pp <- ggplot(data, aes(x = Round, y = Severity, group = Encounter)) + 
+  coord_cartesian(ylim = meas.scale) +
+  stat_summary(aes(color=Encounter,shape=Encounter),fun.data = "mean_cl_normal", geom="point", size=1.5, position = position_dodge(0.6)) +
+  stat_summary(aes(color=Encounter),fun.data = "mean_cl_normal", geom="errorbar",position = position_dodge(0.6),size=0.4, width=0.3 ) +
+  theme_light() + guides(colour = guide_legend(nrow = 1)) +
+  theme(legend.direction = "horizontal") +
+  scale_color_manual(values=colours_encounter)
+legend <- cowplot::get_legend(pp)
+lay <- rbind(c(1,1),
+             c(2,3),
+             c(4,5),
+             c(6,7),
+             c(8,9))
+grid.arrange(legend,p1,p2,p3,p4,p5,p6,p7,p8,heights=c(0.5,2,2,2,2),ncol = 2,nrow = 5,layout_matrix = lay)
+```
+
+```{r}
+# Differences between two Encounter levels in Fig. 13
+
+### Run only one of these for one measure
+data.wide = dcast(data, id ~ Encounter * Round, value.var="Confidence",fun.aggregate=mean) 
+data.wide = dcast(data, id ~ Encounter * Round, value.var="Calmness",fun.aggregate=mean) 
+data.wide = dcast(data, id ~ Encounter * Round, value.var="Liking.the.task",fun.aggregate=mean) 
+data.wide = dcast(data, id ~ Encounter * Round, value.var="Attentivness",fun.aggregate=mean) 
+data.wide = dcast(data, id ~ Encounter * Round, value.var="Proficiency",fun.aggregate=mean) 
+data.wide = dcast(data, id ~ Encounter * Round, value.var="Eagerness.to.learn",fun.aggregate=mean) 
+data.wide = dcast(data, id ~ Encounter * Round, value.var="Being.goal.driven",fun.aggregate=mean) 
+
+t1 = t.test(data.wide$"First_1",data.wide$"Second_1", paired=TRUE, alternative = "greater")
+t2 = t.test(data.wide$"First_2",data.wide$"Second_2", paired=TRUE, alternative = "greater")
+t3 = t.test(data.wide$"First_3",data.wide$"Second_3", paired=TRUE, alternative = "greater")
+t4 = t.test(data.wide$"First_4",data.wide$"Second_4", paired=TRUE, alternative = "greater")
+t5 = t.test(data.wide$"First_5",data.wide$"Second_5", paired=TRUE, alternative = "greater")
+t6 = t.test(data.wide$"First_6",data.wide$"Second_6", paired=TRUE, alternative = "greater")
+p.adjust(c(t1$p.value, t2$p.value, t3$p.value, t4$p.value, t5$p.value, t6$p.value), method="none")
+```
+
+```{r}
+# Correlations between the aspects of the participants’ disposition of trust and their Big-Five personality traits
+# Table 6
+
+cor.test(data[with(data, Order == 1), ]$Extraversion, data[with(data, Order == 1), ]$Benevolence, method = c("pearson"))
+cor.test(data[with(data, Order == 1), ]$Extraversion, data[with(data, Order == 1), ]$Integrity, method = c("pearson"))
+cor.test(data[with(data, Order == 1), ]$Extraversion, data[with(data, Order == 1), ]$Competence, method = c("pearson"))
+cor.test(data[with(data, Order == 1), ]$Extraversion, data[with(data, Order == 1), ]$Trusting.Stance, method = c("pearson"))
+
+cor.test(data[with(data, Order == 1), ]$Agreeableness, data[with(data, Order == 1), ]$Benevolence, method = c("pearson"))
+cor.test(data[with(data, Order == 1), ]$Agreeableness, data[with(data, Order == 1), ]$Integrity, method = c("pearson"))
+cor.test(data[with(data, Order == 1), ]$Agreeableness, data[with(data, Order == 1), ]$Competence, method = c("pearson"))
+cor.test(data[with(data, Order == 1), ]$Agreeableness, data[with(data, Order == 1), ]$Trusting.Stance, method = c("pearson"))
+
+cor.test(data[with(data, Order == 1), ]$Conscientiousness, data[with(data, Order == 1), ]$Benevolence, method = c("pearson"))
+cor.test(data[with(data, Order == 1), ]$Conscientiousness, data[with(data, Order == 1), ]$Integrity, method = c("pearson"))
+cor.test(data[with(data, Order == 1), ]$Conscientiousness, data[with(data, Order == 1), ]$Competence, method = c("pearson"))
+cor.test(data[with(data, Order == 1), ]$Conscientiousness, data[with(data, Order == 1), ]$Trusting.Stance, method = c("pearson"))
+
+cor.test(data[with(data, Order == 1), ]$Emotional.Stability, data[with(data, Order == 1), ]$Benevolence, method = c("pearson"))
+cor.test(data[with(data, Order == 1), ]$Emotional.Stability, data[with(data, Order == 1), ]$Integrity, method = c("pearson"))
+cor.test(data[with(data, Order == 1), ]$Emotional.Stability, data[with(data, Order == 1), ]$Competence, method = c("pearson"))
+cor.test(data[with(data, Order == 1), ]$Emotional.Stability, data[with(data, Order == 1), ]$Trusting.Stance, method = c("pearson"))
+
+cor.test(data[with(data, Order == 1), ]$Openness.to.Experiences, data[with(data, Order == 1), ]$Benevolence, method = c("pearson"))
+cor.test(data[with(data, Order == 1), ]$Openness.to.Experiences, data[with(data, Order == 1), ]$Integrity, method = c("pearson"))
+cor.test(data[with(data, Order == 1), ]$Openness.to.Experiences, data[with(data, Order == 1), ]$Competence, method = c("pearson"))
+cor.test(data[with(data, Order == 1), ]$Openness.to.Experiences, data[with(data, Order == 1), ]$Trusting.Stance, method = c("pearson"))
+```
+
+```{r}
+# GLM predicting participants’ rating of robots’ gender, Table 7
+
+m = glm(Gender ~ Group + Encounter + Appearance, data=data[with(data, Round == 1), ], family="binomial")
+summary(m)
+```
+
+```{r}
+# Fig. 14
+colours_gender = c("#2166ac","#74add1","#762a83","#878787","#de77ae","#c51b7d")
+meas.scale.c <- c(0,50)
+
+pr = as.data.frame(xtabs( ~ Gender + Group, data=data[with(data, Round == 1), ]))
+prp = as.data.frame(transform(pr, Percentage = ave(Freq, Group, FUN = prop.table)))
+p1<- ggplot(prp, aes(x=Group, y=Percentage*100)) + geom_bar(aes(fill = Gender),stat = "identity",position=position_dodge(), width = w) +
+  theme_light() +
+  scale_fill_manual(values = colours_gender) +
+  theme(plot.title = element_text(size = 10),axis.title.y = element_text(size = 9),axis.title.x = element_text(size = 9)) +
+  ylab("Percent (%)") +
+  xlab("Condition") +
+  theme(legend.key.size = unit(1.5, 'lines'),legend.text = element_text(size = 8),legend.spacing.y = unit(1.0, 'cm')) +
+  theme(legend.position = "none")
+coord_cartesian(c(0,40))
+
+p2<-ggplot(data[with(data, Round == 1), ], aes(Appearance, ..count..)) + geom_bar(aes(fill = Gender),position=position_dodge(), width = w) +
+  theme_light() +
+  scale_fill_manual(values = colours_gender) +
+  theme(plot.title = element_text(size = 10),axis.title.y = element_text(size = 9),axis.title.x = element_text(size = 9)) +
+  ylab("Count") +
+  theme(legend.key.size = unit(1.5, 'lines'),legend.text = element_text(size = 8),legend.spacing.y = unit(1.0, 'cm')) +
+  coord_cartesian(ylim = meas.scale.c) +
+  theme(legend.position = "none") 
+
+p3<-ggplot(data[with(data, Round == 1), ], aes(Encounter, ..count..)) + geom_bar(aes(fill = Gender),position=position_dodge(), width = w) +
+  theme_light() +
+  scale_fill_manual(values = colours_gender) +
+  labs(fill = "Percieved gender\nof the robots:") +
+  theme(plot.title = element_text(size = 10),axis.title.y = element_text(size = 9),axis.title.x = element_text(size = 9)) +
+  ylab("Count") +
+  theme(legend.key.size = unit(1.5, 'lines'),legend.text = element_text(size = 9),legend.spacing.y = unit(1.0, 'cm')) +
+  coord_cartesian(ylim = meas.scale.c)
+
+lay <- rbind(c(1,2,3))
+grid.arrange(p1,p2,p3,nrow = 3,widths=c(1,1,1.8),layout_matrix = lay)
+```
+
+```{r}
+# Fig. 15
+
+colours_gender = c("#2166ac","#74add1","#762a83","#878787","#de77ae","#c51b7d")
+meas.scale <- c(0,100)
+data$Gender <- factor(data$Gender,
+                              levels = c('Definitely male','Maybe male','Either','Neither', 'Maybe female', 'Definitely female'))
+
+pr = as.data.frame(xtabs( ~ Gender, data=data[with(data, Round == 1), ]))
+ggplot(data[with(data, Round == 1), ], aes(Gender, ..count..)) + geom_bar(aes(fill = Gender),position=position_dodge(), width = 0.5) +
+  theme_light() +
+  scale_fill_manual(values = colours_gender) +
+  labs(fill = "Percieved Gender\nof the robots") +
+  theme(plot.title = element_text(size = 10),axis.title.y = element_text(size = 9),axis.title.x = element_text(size = 9)) +
+  ylab("Count") +
+  coord_cartesian(ylim = meas.scale)
+
+w = 0.7
+```

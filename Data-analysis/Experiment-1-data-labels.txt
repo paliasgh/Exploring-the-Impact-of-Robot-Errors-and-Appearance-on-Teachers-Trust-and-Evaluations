@@ -1,0 +1,11 @@
+id: Unique identifier of a participant
+Food: The food for which the severity of error was asked
+order: The order of the question in the list of scales presented to the participants
+age: Participant's age
+gender: Participant's gender
+match: Whether the error was about the ingredients each participant preferred (xp and yp)
+x and y: X_{1} and Y_{1} (refer to the paper)
+xp and yp: preference of participant regarding X_{1} and Y_{1} for the food
+Mistake: The mistake for which the severity of error was asked
+Severity: The rated severity of error
+ins: This specifies the question: Forgetting/Replacing on the left side (about x): 0, Forgetting/Replacing on the right side (about y): 1, Adding cleaner: 2

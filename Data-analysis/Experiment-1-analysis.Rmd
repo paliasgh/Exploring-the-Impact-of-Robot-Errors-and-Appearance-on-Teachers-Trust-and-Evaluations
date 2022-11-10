@@ -1,0 +1,461 @@
+Author: Pourya Aliasghari, University of Waterloo
+The current version is available for use under GNU GPLv3 license.
+Please cite:
+- Aliasghari, P., Ghafurian, M., Nehaniv, C.L. Dautenhahn, K. How Do We Perceive Our Trainee Robots?
+Exploring the Impact of Robot Errors and Appearance when Performing Domestic Physical Tasks on Teachers’
+Trust and Evaluations. ACM Transactions on Human-Robot Interaction
+- Aliasghari, P., Ghafurian, M., Nehaniv, C.L. Dautenhahn, K. (2021). Effect of Domestic Trainee Robots’
+Errors on Human Teachers’ Trust. in RO-MAN ’21: 30th IEEE International Conference on Robot and Human
+Interactive Communication.
+
+```{r}
+# some may not be used
+library(ggplot2)
+library(magrittr)
+library(tidyverse)
+library(gridExtra)
+library(Hmisc)
+library(egg)
+library(lme4) 
+library(lmerTest)
+library(car)
+library(multcomp)
+library(lsmeans)
+library(plyr)
+library(fitdistrplus)
+library(ggpubr)
+library(wesanderson)
+library(MASS)
+library(cAIC4)
+library(gridExtra)
+library(grid)
+library(ggplot2)
+library(RColorBrewer)
+require(tidyverse)
+require(car)
+library(plyr)
+```
+
+```{r}
+# Loading the data
+data = read.csv("Experiment-1-data.csv")
+```
+
+```{r}
+# Participants demographics summary
+summary(as.factor(data$gender))/(sum(summary(as.factor(data$gender)))/173)
+ddply(data,~Food,function(data) summary(data$age))
+ddply(data,~Food, summarise, meas.mean=mean(age), meas.sd=sd(age))
+```
+
+```{r}
+# Difference between adding cleaner to different foods
+# One-way repeated measures ANOVA
+library(ez)
+m = ezANOVA(dv=Severity, within=Food, wid=id, data=data[data$Mistake == "Adding cleaner",])
+m$Mauchly
+m$ANOVA
+pos = match(m$`Sphericity Corrections`$Effect, m$ANOVA$Effect)
+m$Sphericity$GGe.DFn = m$Sphericity$GGe * m$ANOVA$DFn[pos] # Greenhouse-Geisser
+m$Sphericity$GGe.DFd = m$Sphericity$GGe * m$ANOVA$DFd[pos]
+m$Sphericity 
+```
+
+```{r}
+# Fig. 2
+
+meas.scale <- c(0,1000)
+colours_mistakes = c("#1b9e77","#d95f02","#7570b3")
+
+ggplot(data, aes(x = Food, y = Severity, group = Mistake)) + 
+  coord_cartesian(ylim = meas.scale) +
+  stat_summary(aes(color=Mistake,shape=Mistake),fun.data = "mean_cl_normal", geom="point", size=1.5, position = position_dodge(0.6)) +
+  stat_summary(aes(color=Mistake),fun.data = "mean_cl_normal", geom="errorbar",position = position_dodge(0.6),size=0.4, width=0.3 ) + 
+  theme_light() +
+  theme(plot.title = element_text(face="bold",size = 10)) +
+  scale_color_manual(values=colours_mistakes) +
+  ggtitle("(A) All") +
+  coord_flip(ylim = meas.scale) +
+  theme(axis.title.x = element_text(size=9),axis.title.y = element_text(size=9))
+
+ggplot(data[with(data, match == "yes"), ], aes(x = Food, y = Severity, group = Mistake)) + 
+  coord_cartesian(ylim = meas.scale) +
+  stat_summary(aes(color=Mistake,shape=Mistake),fun.data = "mean_cl_normal", geom="point", size=1.5, position = position_dodge(0.6)) +
+  stat_summary(aes(color=Mistake),fun.data = "mean_cl_normal", geom="errorbar",position = position_dodge(0.6),size=0.4, width=0.3 ) + 
+  theme_light() +
+  theme(plot.title = element_text(face="bold",size = 10)) +
+  scale_color_manual(values=colours_mistakes) +
+  ggtitle("(B) Matched preference") +
+  coord_flip(ylim = meas.scale) +
+  theme(axis.title.x = element_text(size=9),axis.title.y = element_text(size=9))
+```
+
+```{r}
+# Fig. 3
+
+t <- seq(0, 180, by = 1) * pi / 180
+r1 <- 0.65
+r2 <- 1
+r3 <- 1.5
+x1 <- r1 * cos(t)
+y1 <- r1*100 * sin(t)
+y1[40:142] <- y1[40]
+arc.df1 <- data.frame(arm = x1, meas = y1)
+arc.df.r <- data.frame(arm = x1, meas = y1,Mistake = "Replacing")
+arc.df.f <- data.frame(arm = x1, meas = y1,Mistake = "Forgetting")
+meas.scale <- c(0,1000)
+
+## Salad
+dat_text.salad.r <- data.frame(
+  label = c("*", ""),
+  Mistake   = c("Forgetting","Replacing"),
+  xp = c("*", "")
+)
+
+dat_text.salad.l <- data.frame(
+  label = c("", "."),
+  Mistake   = c("Forgetting","Replacing"),
+  yp = c("", ".")
+)
+
+salad.l <- ggplot(data[with(data, Food == "Salad" & Type == "1"), ], aes(x = y, y = Severity, group = yp)) + 
+  coord_cartesian(ylim = meas.scale) +
+  stat_summary(aes(color=yp,shape=yp),fun.data = "mean_cl_normal", geom="point", size=1.4, position = position_dodge(0.6)) +
+  stat_summary(aes(color=yp),fun.data = "mean_cl_normal", geom="errorbar",position = position_dodge(0.6),size=0.4, width=0.3 ) + 
+  theme_light() +
+  theme(plot.title = element_text(size = 10)) +
+  scale_color_manual(values=brewer.pal(n = 5, name = "Set1")) + 
+  xlab("") +
+  ylab("Severity") +
+  labs(color='Preferred',shape='Preferred') +
+  scale_x_discrete(labels= c("Balsamic \n vinegar","Lemon \n juice")) +  
+  facet_wrap(.~Mistake) +
+  geom_line(data = arc.df.r, aes(x=arm+1.5, y=meas+700), linetype="solid", size = 0.3, inherit.aes = FALSE) +
+  theme(strip.background = element_blank(),strip.text.x = element_text(size = 10, color = "black")) + 
+  theme(legend.margin = margin(0, 5, 0, -3), legend.title=element_text(size=9),axis.title.x = element_text(size=9),axis.title.y = element_text(size=9)) +
+  geom_text(
+    data    = dat_text.salad.l,
+    mapping = aes(x = 1.5, y = 910, label = label)
+  ) +
+  geom_hline(yintercept=500, linetype="dashed", color = "black", size=0.3)
+
+salad.r <- ggplot(data[with(data, Food == "Salad" & Type == "0"), ], aes(x = x, y = Severity, group = xp)) + 
+  coord_cartesian(ylim = meas.scale) +
+  stat_summary(aes(color=xp,shape=xp),fun.data = "mean_cl_normal", geom="point", size=1.4, position = position_dodge(0.6)) +
+  stat_summary(aes(color=xp),fun.data = "mean_cl_normal", geom="errorbar",position = position_dodge(0.6),size=0.4, width=0.3 ) + 
+  theme_light() +
+  theme(plot.title = element_text(size = 10)) +
+  scale_color_manual(values=brewer.pal(n = 5, name = "Dark2")) + 
+  xlab("Indicated") +
+  ylab("Severity") +
+  labs(color='Preferred',shape='Preferred') +
+  scale_x_discrete(labels= c("Feta \n cheese","Parmesan \n cheese")) +
+  facet_wrap(.~Mistake) +
+  geom_line(data = arc.df.f, aes(x=arm+1.5, y=meas+700), linetype="solid", size = 0.3, inherit.aes = FALSE) +
+  theme(axis.title.x = element_text(size=9),axis.title.y = element_text(size=9)) +
+  theme(legend.margin = margin(0, 0, 0, -3), legend.title=element_text(size=9), strip.background = element_blank(),strip.text.x = element_blank()) + 
+  geom_text(
+    data    = dat_text.salad.r,
+    mapping = aes(x = 1.5, y = 770, label = label)
+  ) +
+  geom_hline(yintercept=500, linetype="dashed", color = "black", size=0.3)
+
+annotate_figure(ggarrange(salad.l,salad.r,
+                                    ncol = 1, nrow = 2,heights = c(4.5,3.9),widths = c(6,1.6)),
+                          fig.lab = "(A) Salad", fig.lab.pos = "top.left", fig.lab.face = "bold", fig.lab.size = 10)
+
+## Tea
+dat_text.salad.r <- data.frame(
+  label = c("***", ""),
+  Mistake   = c("Forgetting","Replacing"),
+  xp = c("***", "")
+)
+
+dat_text.salad.l <- data.frame(
+  label = c("", ""),
+  Mistake   = c("Forgetting","Replacing"),
+  yp = c("", "")
+)
+
+tea.l <- ggplot(data[with(data, Food == "Tea" & Type == "1"), ], aes(x = y, y = Severity, group = yp)) + 
+  coord_cartesian(ylim = meas.scale) +
+  stat_summary(aes(color=yp,shape=yp),fun.data = "mean_cl_normal", geom="point", size=1.4, position = position_dodge(0.6)) +
+  stat_summary(aes(color=yp),fun.data = "mean_cl_normal", geom="errorbar",position = position_dodge(0.6),size=0.4, width=0.3 ) + 
+  theme_light() +
+  theme(plot.title = element_text(size = 10)) +
+  scale_color_manual(values=brewer.pal(n = 5, name = "Set1")) + 
+  xlab("") +
+  ylab("Severity") +
+  labs(color='Preferred',shape='Preferred') +
+  scale_x_discrete(labels= c("Skim milk","Whole milk")) +
+  facet_wrap(.~Mistake) +
+  theme(strip.background = element_blank(),strip.text.x = element_text(size = 10, color = "black")) + 
+  theme(legend.margin = margin(0, 26, 0, 0), legend.title=element_text(size=9),axis.title.x = element_text(size=9),axis.title.y = element_text(size=9)) +
+  geom_text(
+    data    = dat_text.salad.l,
+    mapping = aes(x = 1.5, y = 770, label = label)
+  ) +
+  geom_hline(yintercept=500, linetype="dashed", color = "black", size=0.3)
+
+tea.r <- ggplot(data[with(data, Food == "Tea" & Type == "0"), ], aes(x = x, y = Severity, group = xp)) + 
+  coord_cartesian(ylim = meas.scale) +
+  stat_summary(aes(color=xp,shape=xp),fun.data = "mean_cl_normal", geom="point", size=1.4, position = position_dodge(0.6)) +
+  stat_summary(aes(color=xp),fun.data = "mean_cl_normal", geom="errorbar",position = position_dodge(0.6),size=0.4, width=0.3 ) + 
+  theme_light() +
+  theme(plot.title = element_text(size = 10)) +
+  scale_color_manual(values=brewer.pal(n = 5, name = "Dark2")) + 
+  xlab("Indicated") +
+  ylab("Severity") +
+  labs(color='Preferred',shape='Preferred') +
+  scale_x_discrete(labels= c("Honey","Sugar")) +
+  facet_wrap(.~Mistake) +
+  geom_line(data = arc.df.f, aes(x=arm+1.5, y=meas+700), linetype="solid", size = 0.3, inherit.aes = FALSE) +
+  theme(strip.background = element_blank(),strip.text.x = element_blank()) + 
+  theme(legend.margin = margin(0, 43, 0, 3), legend.title=element_text(size=9),axis.title.x = element_text(size=9),axis.title.y = element_text(size=9)) +
+  geom_text(
+    data    = dat_text.salad.r,
+    mapping = aes(x = 1.5, y = 770, label = label)
+  ) +
+  geom_hline(yintercept=500, linetype="dashed", color = "black", size=0.3)
+
+annotate_figure(ggarrange(tea.l,tea.r,
+                                  ncol = 1, nrow = 2,heights = c(4.8,3.9),widths = c(4.3,1.6)),
+                        fig.lab = "(B) Tea", fig.lab.pos = "top.left", fig.lab.face = "bold", fig.lab.size = 10)
+
+## Soup
+dat_text.salad.r <- data.frame(
+  label = c("", ""),
+  Mistake   = c("Forgetting","Replacing"),
+  xp = c("", "")
+)
+
+dat_text.salad.l <- data.frame(
+  label = c("", ""),
+  Mistake   = c("Forgetting","Replacing"),
+  yp = c("", "")
+)
+
+soup.l <- ggplot(data[with(data, Food == "Soup" & Type == "1"), ], aes(x = y, y = Severity, group = yp)) + 
+  coord_cartesian(ylim = meas.scale) +
+  stat_summary(aes(color=yp,shape=yp),fun.data = "mean_cl_normal", geom="point", size=1.4, position = position_dodge(0.6)) +
+  stat_summary(aes(color=yp),fun.data = "mean_cl_normal", geom="errorbar",position = position_dodge(0.6),size=0.4, width=0.3 ) + 
+  theme_light() +
+  theme(plot.title = element_text(size = 10)) +
+  scale_color_manual(values=brewer.pal(n = 5, name = "Set1")) + 
+  xlab("") +
+  ylab("Severity") +
+  labs(color='Preferred',shape='Preferred') +
+  scale_x_discrete(labels= c("Basil","Mint")) +
+  facet_wrap(.~Mistake) +
+  theme(strip.background = element_blank(),strip.text.x = element_text(size = 10, color = "black")) + 
+  theme(legend.margin = margin(0, 42, 0, 7), legend.title=element_text(size=9),axis.title.x = element_text(size=9),axis.title.y = element_text(size=9)) +
+  geom_text(
+    data    = dat_text.salad.l,
+    mapping = aes(x = 1.5, y = 770, label = label)
+  ) +
+  geom_hline(yintercept=500, linetype="dashed", color = "black", size=0.3)
+
+soup.r <- ggplot(data[with(data, Food == "Soup" & Type == "0"), ], aes(x = x, y = Severity, group = xp)) + 
+  coord_cartesian(ylim = meas.scale) +
+  stat_summary(aes(color=xp,shape=xp),fun.data = "mean_cl_normal", geom="point", size=1.4, position = position_dodge(0.6)) +
+  stat_summary(aes(color=xp),fun.data = "mean_cl_normal", geom="errorbar",position = position_dodge(0.6),size=0.4, width=0.3 ) + 
+  theme_light() +
+  theme(plot.title = element_text(size = 10)) +
+  scale_color_manual(values=brewer.pal(n = 5, name = "Dark2")) + 
+  xlab("Indicated") +
+  ylab("Severity") +
+  labs(color='Preferred',shape='Preferred') +
+  scale_x_discrete(labels= c("Cooked \n noodles","Cooked \n rice")) +
+  facet_wrap(.~Mistake) +
+  theme(strip.background = element_blank(),strip.text.x = element_blank()) + 
+  theme(axis.title.x = element_text(size=9), legend.title=element_text(size=9),axis.title.y = element_text(size=9)) +
+  geom_text(
+    data    = dat_text.salad.r,
+    mapping = aes(x = 1.5, y = 770, label = label)
+  ) +
+  geom_hline(yintercept=500, linetype="dashed", color = "black", size=0.3)
+
+annotate_figure(ggarrange(soup.l,soup.r,
+                                   ncol = 1, nrow = 2,heights = c(4.2,3.9),widths = c(4.3,1.6)),
+                         fig.lab = "(C) Soup", fig.lab.pos = "top.left", fig.lab.face = "bold", fig.lab.size = 10)
+```
+
+```{r}
+# T-tests: Salad
+
+# Assumption checks:
+# Normality of data, Shapiro-Wilk test:
+shapiro.test(data[with(data, Food == "Salad" & Mistake == "Forgetting" & Type == "0" & xp == "Feta cheese" & x == "Feta cheese"), ]$Severity)
+shapiro.test(data[with(data, Food == "Salad" & Mistake == "Forgetting" & Type == "0" & xp == "Parmesan cheese" & x == "Parmesan cheese"), ]$Severity)
+
+# Homogeneity of variance:
+var.test(x = data[with(data, Food == "Salad" & Mistake == "Forgetting" & Type == "0" & xp == "Feta cheese" & x == "Feta cheese"), ]$Severity, y = data[with(data, Food == "Salad" & Mistake == "Forgetting" & Type == "0" & xp == "Parmesan cheese" & x == "Parmesan cheese"), ]$Severity, ratio = 1, alternative = "two.sided", conf.level = 0.95)
+
+# Independence of data, Runs test:
+RunsTest(data[with(data, Food == "Salad" & Mistake == "Forgetting" & Type == "0" & xp == "Feta cheese" & x == "Feta cheese"), ]$Severity)
+RunsTest(data[with(data, Food == "Salad" & Mistake == "Forgetting" & Type == "0" & xp == "Parmesan cheese" & x == "Parmesan cheese"), ]$Severity)
+
+# Assumption checks:
+# Normality of data, Shapiro-Wilk test:
+shapiro.test(data[with(data, Food == "Salad" & Mistake == "Forgetting" & Type == "1" & yp == "Balsamic vinegar" & y == "Balsamic vinegar"), ]$Severity)
+shapiro.test(data[with(data, Food == "Salad" & Mistake == "Forgetting" & Type == "1" & yp == "Lemon juice" & y == "Lemon juice"), ]$Severity)
+
+# Homogeneity of variance:
+var.test(x = data[with(data, Food == "Salad" & Mistake == "Forgetting" & Type == "1" & yp == "Balsamic vinegar" & y == "Balsamic vinegar"), ]$Severity, y = data[with(data, Food == "Salad" & Mistake == "Forgetting" & Type == "1" & yp == "Lemon juice" & y == "Lemon juice"), ]$Severity, ratio = 1, alternative = "two.sided", conf.level = 0.95)
+
+# Independence of data, Runs test:
+RunsTest(data[with(data, Food == "Salad" & Mistake == "Forgetting" & Type == "1" & yp == "Balsamic vinegar" & y == "Balsamic vinegar"), ]$Severity)
+RunsTest(data[with(data, Food == "Salad" & Mistake == "Forgetting" & Type == "1" & yp == "Lemon juice" & y == "Lemon juice"), ]$Severity)
+
+# Assumption checks:
+# Normality of data, Shapiro-Wilk test:
+shapiro.test(data[with(data, Food == "Salad" & Mistake == "Replacing" & Type == "0" & xp == "Feta cheese" & x == "Feta cheese"), ]$Severity)
+shapiro.test(data[with(data, Food == "Salad" & Mistake == "Replacing" & Type == "0" & xp == "Parmesan cheese" & x == "Parmesan cheese"), ]$Severity)
+
+# Homogeneity of variance:
+var.test(x = data[with(data, Food == "Salad" & Mistake == "Replacing" & Type == "0" & xp == "Feta cheese" & x == "Feta cheese"), ]$Severity, y = data[with(data, Food == "Salad" & Mistake == "Replacing" & Type == "0" & xp == "Parmesan cheese" & x == "Parmesan cheese"), ]$Severity, ratio = 1, alternative = "two.sided", conf.level = 0.95)
+
+# Independence of data, Runs test:
+RunsTest(data[with(data, Food == "Salad" & Mistake == "Replacing" & Type == "0" & xp == "Feta cheese" & x == "Feta cheese"), ]$Severity)
+RunsTest(data[with(data, Food == "Salad" & Mistake == "Replacing" & Type == "0" & xp == "Parmesan cheese" & x == "Parmesan cheese"), ]$Severity)
+
+# Assumption checks:
+# Normality of data, Shapiro-Wilk test:
+shapiro.test(data[with(data, Food == "Salad" & Mistake == "Replacing" & Type == "1" & yp == "Balsamic vinegar" & y == "Balsamic vinegar"), ]$Severity)
+shapiro.test(data[with(data, Food == "Salad" & Mistake == "Replacing" & Type == "1" & yp == "Lemon juice" & y == "Lemon juice"), ]$Severity)
+
+# Homogeneity of variance:
+var.test(x = data[with(data, Food == "Salad" & Mistake == "Replacing" & Type == "1" & yp == "Balsamic vinegar" & y == "Balsamic vinegar"), ]$Severity, y = data[with(data, Food == "Salad" & Mistake == "Replacing" & Type == "1" & yp == "Lemon juice" & y == "Lemon juice"), ]$Severity, ratio = 1, alternative = "two.sided", conf.level = 0.95)
+
+# Independence of data, Runs test:
+RunsTest(data[with(data, Food == "Salad" & Mistake == "Replacing" & Type == "1" & yp == "Balsamic vinegar" & y == "Balsamic vinegar"), ]$Severity)
+RunsTest(data[with(data, Food == "Salad" & Mistake == "Replacing" & Type == "1" & yp == "Lemon juice" & y == "Lemon juice"), ]$Severity)
+
+###
+
+t.test(data[with(data, Food == "Salad" & Mistake == "Forgetting" & Type == "0" & xp == "Feta cheese" & x == "Feta cheese"), ]$Severity , data[with(data, Food == "Salad" & Mistake == "Forgetting" & Type == "0" & xp == "Parmesan cheese" & x == "Parmesan cheese"), ]$Severity, var.equal=T)
+t.test(data[with(data, Food == "Salad" & Mistake == "Forgetting" & Type == "1" & yp == "Balsamic vinegar" & y == "Balsamic vinegar"), ]$Severity , data[with(data, Food == "Salad" & Mistake == "Forgetting" & Type == "1" & yp == "Lemon juice" & y == "Lemon juice"), ]$Severity, var.equal=T)
+
+t.test(data[with(data, Food == "Salad" & Mistake == "Replacing" & Type == "0" & xp == "Feta cheese" & x == "Feta cheese"), ]$Severity , data[with(data, Food == "Salad" & Mistake == "Replacing" & Type == "0" & xp == "Parmesan cheese" & x == "Parmesan cheese"), ]$Severity, var.equal=T)
+t.test(data[with(data, Food == "Salad" & Mistake == "Replacing" & Type == "1" & yp == "Balsamic vinegar" & y == "Balsamic vinegar"), ]$Severity , data[with(data, Food == "Salad" & Mistake == "Replacing" & Type == "1" & yp == "Lemon juice" & y == "Lemon juice"), ]$Severity, var.equal=T)
+```
+
+```{r}
+# T-tests: Tea
+
+# Assumption checks:
+# Normality of data, Shapiro-Wilk test:
+shapiro.test(data[with(data, Food == "Tea" & Mistake == "Forgetting" & Type == "0" & xp == "Honey" & x == "Honey"), ]$Severity)
+shapiro.test(data[with(data, Food == "Tea" & Mistake == "Forgetting" & Type == "0" & xp == "Sugar" & x == "Sugar"), ]$Severity)
+
+# Homogeneity of variance:
+var.test(x = data[with(data, Food == "Tea" & Mistake == "Forgetting" & Type == "0" & xp == "Honey" & x == "Honey"), ]$Severity, y = data[with(data, Food == "Tea" & Mistake == "Forgetting" & Type == "0" & xp == "Sugar" & x == "Sugar"), ]$Severity, ratio = 1, alternative = "two.sided", conf.level = 0.95)
+
+# Independence of data, Runs test:
+RunsTest(data[with(data, Food == "Tea" & Mistake == "Forgetting" & Type == "0" & xp == "Honey" & x == "Honey"), ]$Severity)
+RunsTest(data[with(data, Food == "Tea" & Mistake == "Forgetting" & Type == "0" & xp == "Sugar" & x == "Sugar"), ]$Severity)
+
+# Assumption checks:
+# Normality of data, Shapiro-Wilk test:
+shapiro.test(data[with(data, Food == "Tea" & Mistake == "Forgetting" & Type == "1" & yp == "Skim milk" & y == "Skim milk"), ]$Severity)
+shapiro.test(data[with(data, Food == "Tea" & Mistake == "Forgetting" & Type == "1" & yp == "Whole milk" & y == "Whole milk"), ]$Severity)
+
+# Homogeneity of variance:
+var.test(x = data[with(data, Food == "Tea" & Mistake == "Forgetting" & Type == "1" & yp == "Skim milk" & y == "Skim milk"), ]$Severity, y = data[with(data, Food == "Tea" & Mistake == "Forgetting" & Type == "1" & yp == "Whole milk" & y == "Whole milk"), ]$Severity, ratio = 1, alternative = "two.sided", conf.level = 0.95)
+
+# Independence of data, Runs test:
+RunsTest(data[with(data, Food == "Tea" & Mistake == "Forgetting" & Type == "1" & yp == "Skim milk" & y == "Skim milk"), ]$Severity)
+RunsTest(data[with(data, Food == "Tea" & Mistake == "Forgetting" & Type == "1" & yp == "Whole milk" & y == "Whole milk"), ]$Severity)
+
+# Assumption checks:
+# Normality of data, Shapiro-Wilk test:
+shapiro.test(data[with(data, Food == "Tea" & Mistake == "Replacing" & Type == "0" & xp == "Honey" & x == "Honey"), ]$Severity)
+shapiro.test(data[with(data, Food == "Tea" & Mistake == "Replacing" & Type == "0" & xp == "Sugar" & x == "Sugar"), ]$Severity)
+
+# Homogeneity of variance:
+var.test(x = data[with(data, Food == "Tea" & Mistake == "Replacing" & Type == "0" & xp == "Honey" & x == "Honey"), ]$Severity, y = data[with(data, Food == "Tea" & Mistake == "Replacing" & Type == "0" & xp == "Sugar" & x == "Sugar"), ]$Severity, ratio = 1, alternative = "two.sided", conf.level = 0.95)
+
+# Independence of data, Runs test:
+RunsTest(data[with(data, Food == "Tea" & Mistake == "Replacing" & Type == "0" & xp == "Honey" & x == "Honey"), ]$Severity)
+RunsTest(data[with(data, Food == "Tea" & Mistake == "Replacing" & Type == "0" & xp == "Sugar" & x == "Sugar"), ]$Severity)
+
+# Assumption checks:
+# Normality of data, Shapiro-Wilk test:
+shapiro.test(data[with(data, Food == "Tea" & Mistake == "Replacing" & Type == "1" & yp == "Skim milk" & y == "Skim milk"), ]$Severity)
+shapiro.test(data[with(data, Food == "Tea" & Mistake == "Replacing" & Type == "1" & yp == "Whole milk" & y == "Whole milk"), ]$Severity)
+
+# Homogeneity of variance:
+var.test(x = data[with(data, Food == "Tea" & Mistake == "Replacing" & Type == "1" & yp == "Skim milk" & y == "Skim milk"), ]$Severity, y = data[with(data, Food == "Tea" & Mistake == "Replacing" & Type == "1" & yp == "Whole milk" & y == "Whole milk"), ]$Severity, ratio = 1, alternative = "two.sided", conf.level = 0.95)
+
+# Independence of data, Runs test:
+RunsTest(data[with(data, Food == "Tea" & Mistake == "Replacing" & Type == "1" & yp == "Skim milk" & y == "Skim milk"), ]$Severity)
+RunsTest(data[with(data, Food == "Tea" & Mistake == "Replacing" & Type == "1" & yp == "Whole milk" & y == "Whole milk"), ]$Severity)
+
+###
+
+t.test(data[with(data, Food == "Tea" & Mistake == "Forgetting" & Type == "0" & xp == "Honey" & x == "Honey"), ]$Severity , data[with(data, Food == "Tea" & Mistake == "Forgetting" & Type == "0" & xp == "Sugar" & x == "Sugar"), ]$Severity, var.equal=T)
+t.test(data[with(data, Food == "Tea" & Mistake == "Forgetting" & Type == "1" & yp == "Skim milk" & y == "Skim milk"), ]$Severity , data[with(data, Food == "Tea" & Mistake == "Forgetting" & Type == "1" & yp == "Whole milk" & y == "Whole milk"), ]$Severity, var.equal=T)
+
+t.test(data[with(data, Food == "Tea" & Mistake == "Replacing" & Type == "0" & xp == "Honey" & x == "Honey"), ]$Severity , data[with(data, Food == "Tea" & Mistake == "Replacing" & Type == "0" & xp == "Sugar" & x == "Sugar"), ]$Severity, var.equal=T)
+t.test(data[with(data, Food == "Tea" & Mistake == "Replacing" & Type == "1" & yp == "Skim milk" & y == "Skim milk"), ]$Severity , data[with(data, Food == "Tea" & Mistake == "Replacing" & Type == "1" & yp == "Whole milk" & y == "Whole milk"), ]$Severity, var.equal=FALSE)
+```
+
+```{r}
+# T-tests: Soup
+
+# Assumption checks:
+# Normality of data, Shapiro-Wilk test:
+shapiro.test(data[with(data, Food == "Soup" & Mistake == "Forgetting" & Type == "0" & xp == "Cooked rice" & x == "Cooked rice"), ]$Severity)
+shapiro.test(data[with(data, Food == "Soup" & Mistake == "Forgetting" & Type == "0" & xp == "Cooked noodle" & x == "Cooked noodle"), ]$Severity)
+
+# Homogeneity of variance:
+var.test(x = data[with(data, Food == "Soup" & Mistake == "Forgetting" & Type == "0" & xp == "Cooked rice" & x == "Cooked rice"), ]$Severity, y = data[with(data, Food == "Soup" & Mistake == "Forgetting" & Type == "0" & xp == "Cooked noodle" & x == "Cooked noodle"), ]$Severity, ratio = 1, alternative = "two.sided", conf.level = 0.95)
+
+# Independence of data, Runs test:
+RunsTest(data[with(data, Food == "Soup" & Mistake == "Forgetting" & Type == "0" & xp == "Cooked rice" & x == "Cooked rice"), ]$Severity)
+RunsTest(data[with(data, Food == "Soup" & Mistake == "Forgetting" & Type == "0" & xp == "Cooked noodle" & x == "Cooked noodle"), ]$Severity)
+
+# Assumption checks:
+# Normality of data, Shapiro-Wilk test:
+shapiro.test(data[with(data, Food == "Soup" & Mistake == "Forgetting" & Type == "1" & yp == "Basil" & y == "Basil"), ]$Severity)
+shapiro.test(data[with(data, Food == "Soup" & Mistake == "Forgetting" & Type == "1" & yp == "Mint" & y == "Mint"), ]$Severity)
+
+# Homogeneity of variance:
+var.test(x = data[with(data, Food == "Soup" & Mistake == "Forgetting" & Type == "1" & yp == "Basil" & y == "Basil"), ]$Severity, y = data[with(data, Food == "Soup" & Mistake == "Forgetting" & Type == "1" & yp == "Mint" & y == "Mint"), ]$Severity, ratio = 1, alternative = "two.sided", conf.level = 0.95)
+
+# Independence of data, Runs test:
+RunsTest(data[with(data, Food == "Soup" & Mistake == "Forgetting" & Type == "1" & yp == "Basil" & y == "Basil"), ]$Severity)
+RunsTest(data[with(data, Food == "Soup" & Mistake == "Forgetting" & Type == "1" & yp == "Mint" & y == "Mint"), ]$Severity)
+
+# Assumption checks:
+# Normality of data, Shapiro-Wilk test:
+shapiro.test(data[with(data, Food == "Soup" & Mistake == "Replacing" & Type == "0" & xp == "Cooked rice" & x == "Cooked rice"), ]$Severity)
+shapiro.test(data[with(data, Food == "Soup" & Mistake == "Replacing" & Type == "0" & xp == "Cooked noodle" & x == "Cooked noodle"), ]$Severity)
+
+# Homogeneity of variance:
+var.test(x = data[with(data, Food == "Soup" & Mistake == "Replacing" & Type == "0" & xp == "Cooked rice" & x == "Cooked rice"), ]$Severity, y = data[with(data, Food == "Soup" & Mistake == "Replacing" & Type == "0" & xp == "Cooked noodle" & x == "Cooked noodle"), ]$Severity, ratio = 1, alternative = "two.sided", conf.level = 0.95)
+
+# Independence of data, Runs test:
+RunsTest(data[with(data, Food == "Soup" & Mistake == "Replacing" & Type == "0" & xp == "Cooked rice" & x == "Cooked rice"), ]$Severity)
+RunsTest(data[with(data, Food == "Soup" & Mistake == "Replacing" & Type == "0" & xp == "Cooked noodle" & x == "Cooked noodle"), ]$Severity)
+
+# Assumption checks:
+# Normality of data, Shapiro-Wilk test:
+shapiro.test(data[with(data, Food == "Soup" & Mistake == "Replacing" & Type == "1" & yp == "Basil" & y == "Basil"), ]$Severity)
+shapiro.test(data[with(data, Food == "Soup" & Mistake == "Replacing" & Type == "1" & yp == "Mint" & y == "Mint"), ]$Severity)
+
+# Homogeneity of variance:
+var.test(x = data[with(data, Food == "Soup" & Mistake == "Replacing" & Type == "1" & yp == "Basil" & y == "Basil"), ]$Severity, y = data[with(data, Food == "Soup" & Mistake == "Replacing" & Type == "1" & yp == "Mint" & y == "Mint"), ]$Severity, ratio = 1, alternative = "two.sided", conf.level = 0.95)
+
+# Independence of data, Runs test:
+RunsTest(data[with(data, Food == "Soup" & Mistake == "Replacing" & Type == "1" & yp == "Basil" & y == "Basil"), ]$Severity)
+RunsTest(data[with(data, Food == "Soup" & Mistake == "Replacing" & Type == "1" & yp == "Mint" & y == "Mint"), ]$Severity)
+
+###
+
+t.test(data[with(data, Food == "Soup" & Mistake == "Forgetting" & Type == "0" & xp == "Cooked rice" & x == "Cooked rice"), ]$Severity , data[with(data, Food == "Soup" & Mistake == "Forgetting" & Type == "0" & xp == "Cooked noodle" & x == "Cooked noodle"), ]$Severity, var.equal=T)
+t.test(data[with(data, Food == "Soup" & Mistake == "Forgetting" & Type == "1" & yp == "Basil" & y == "Basil"), ]$Severity , data[with(data, Food == "Soup" & Mistake == "Forgetting" & Type == "1" & yp == "Mint" & y == "Mint"), ]$Severity, var.equal=T)
+
+t.test(data[with(data, Food == "Soup" & Mistake == "Replacing" & Type == "0" & xp == "Cooked rice" & x == "Cooked rice"), ]$Severity , data[with(data, Food == "Soup" & Mistake == "Replacing" & Type == "0" & xp == "Cooked noodle" & x == "Cooked noodle"), ]$Severity, var.equal=T)
+t.test(data[with(data, Food == "Soup" & Mistake == "Replacing" & Type == "1" & yp == "Basil" & y == "Basil"), ]$Severity , data[with(data, Food == "Soup" & Mistake == "Replacing" & Type == "1" & yp == "Mint" & y == "Mint"), ]$Severity, var.equal=T)
+```

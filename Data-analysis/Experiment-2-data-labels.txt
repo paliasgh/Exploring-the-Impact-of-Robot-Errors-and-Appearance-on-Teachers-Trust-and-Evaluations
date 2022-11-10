@@ -1,0 +1,26 @@
+id: Unique identifier of a participant
+Food: The food for which the severity of error was asked
+Order: Teaching and practising round (from 1 to 12, two sets of 6)
+Appearance: Robot appearance
+Confidence-Being.goal.driven: Measures for each robot behaviour
+Severity: Rated severity of error in each robot behaviour, -1 if there was no error
+Left-Right: The food item selected in the left or right side, 1 or 2 for the first or the second item from left
+Cook: Preference for using the robot for cooking asked in Step 6
+Laundry: Preference for using the robot for doing laundry asked in Step 6
+Learning: Whether the robot “improved a lot” or “did not improve at all” asked in Step 6
+Scenario: Whether the teaching scenario “looked very realistic” or “not realistic at all” asked in Step 6
+Gender: The gender participant assigned to the robot, asked in Step 6
+Teaching: "How successful do you think this robot would be in teaching cooking tasks to another robot?", asked in Step 6
+Future: "If you had this robot in your home, how likely would you be to use it to assist you with chores?", asked in Step 6
+like_cooking: How much the participant like cooking asked in Step 7
+often_cooking: What proportion of their “weekly meals” they cook themselves, asked in Step 7
+like_laundry: How much the participant like doing laundry asked in Step 7
+often_laundry: What proportion of their “monthly laundry” they do themselves, asked in Step 7
+Professional-Authority: Comparison between two robots in Step 7
+Age: Participant's age
+Gender_p: Participant's gender
+Round: Teaching and practising round (from 1 to 6, for each set)
+Encounter: Whether it was the first robot or the second robot shown to the participant
+Extraversion-Openness.to.Experiences: TIPI questionnaire results
+Benevolence-Trusting.Stance: DT questionnaire results
+Gender_n: The gender participant assigned to the robot, asked in Step 6, in numeric for to be used in models

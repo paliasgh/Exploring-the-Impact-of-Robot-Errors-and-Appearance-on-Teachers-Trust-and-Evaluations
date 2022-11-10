@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+
+<!--
+Author: Pourya Aliasghari, University of Waterloo
+The current version is available for use under GNU GPLv3 license.
+Please cite:
+- Aliasghari, P., Ghafurian, M., Nehaniv, C.L. Dautenhahn, K. How Do We Perceive Our Trainee Robots?
+Exploring the Impact of Robot Errors and Appearance when Performing Domestic Physical Tasks on Teachers’
+Trust and Evaluations. ACM Transactions on Human-Robot Interaction
+- Aliasghari, P., Ghafurian, M., Nehaniv, C.L. Dautenhahn, K. (2021). Effect of Domestic Trainee Robots’
+Errors on Human Teachers’ Trust. in RO-MAN ’21: 30th IEEE International Conference on Robot and Human
+Interactive Communication.
+-->
+
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.0/css/bootstrap.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.0/js/bootstrap.min.js"></script>
+    <title>SIRRL Study</title>
+    <style>
+
+        html {
+            scroll-behavior: smooth;
+        }
+        .center {
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+            width: 100%;
+            position: relative;
+            top: 0;
+            left: 0;
+        }
+        :root {
+            --pos_fromleft_left_big_ring: 100px;
+            --pos_frombottom_left_big_ring: -10px;
+            --pos_fromleft_right_big_ring: 100px;
+            --pos_frombottom_right_big_ring: -10px;
+
+            --pos_fromleft_left_small_ring_1: 100px;
+            --pos_frombottom_left_small_ring_1: -10px;
+            --pos_fromleft_left_small_ring_2: 100px;
+            --pos_frombottom_left_small_ring_2: -10px;
+            --pos_fromleft_right_small_ring_1: 100px;
+            --pos_frombottom_right_small_ring_1: -10px;
+            --pos_fromleft_right_small_ring_2: 100px;
+            --pos_frombottom_right_small_ring_2: -10px;
+
+            --o11_ring: 0;
+            --o12_ring: 0;
+            --o21_ring: 0;
+            --o22_ring: 0;
+        }
+        .vid {
+            position: relative;
+            top: 0;
+            left: 0;
+            width: 100%;
+        }
+        .load {
+
+            width: 20%;
+            margin: auto;
+        }
+        .image1 {
+            position: relative;
+            top: 0;
+            left: 0;
+            width: 100%;
+        }
+        .image2 {
+            position: absolute;
+            bottom: var(--pos_frombottom_left_big_ring);
+            left: var(--pos_fromleft_left_big_ring);
+            width: 28%;
+        }
+
+        .image3 {
+            position: absolute;
+            bottom: var(--pos_frombottom_right_big_ring);
+            left: var(--pos_fromleft_right_big_ring);
+            width: 28%;
+        }
+        .image4 {
+            position: absolute;
+            bottom: var(--pos_frombottom_left_small_ring_1);
+            left: var(--pos_fromleft_left_small_ring_1);
+            width: 13%;
+            opacity: var(--o11_ring);
+        }
+        .image5 {
+            position: absolute;
+            bottom: var(--pos_frombottom_left_small_ring_2);
+            left: var(--pos_fromleft_left_small_ring_2);
+            width: 13%;
+            opacity: var(--o12_ring);
+
+        }
+        .image6 {
+            position: absolute;
+            bottom: var(--pos_frombottom_right_small_ring_1);
+            left: var(--pos_fromleft_right_small_ring_1);
+            width: 13%;
+            opacity: var(--o21_ring);
+
+        }
+        .image7 {
+            position: absolute;
+            bottom: var(--pos_frombottom_right_small_ring_2);
+            left: var(--pos_fromleft_right_small_ring_2);
+            width: 13%;
+            opacity: var(--o22_ring);
+
+        }
+        table,
+        th,
+        td {
+            text-align: center;
+        }
+    </style>
+</head>
+
+<body style="background-color: #ffffff" onload="init()">
+    <div class="container" style="background-color: #ffffff; min-height: 100vh">
+        <div class="row">
+            <div class="col-lg-2 col-md-2"></div>
+            <div class="col-lg-8 col-md-8" style="text-align: center;">
+                <h3>Instructions</h3>
+                <div><span id="step"></span>/7</div>
+                <img src="pictures/loading.gif" id="loading" style="display:none">
+            </div>
+            <div class="col-lg-2 col-md-2"></div>
+        </div>
+        <div class="row">
+            <div class="col-lg-2 col-md-2"></div>
+            <div class="col-lg-8 col-md-8" style="text-align:center; font-family:'Times New Roman', Times, serif">
+                <div id="step"></div>
+            </div>
+            <div class="col-lg-2 col-md-2"></div>
+        </div>
+
+        <div class="center">
+                <!-- Video showing how to use the framework -->
+                <video id="demo_video" class="vid" style="display:none">
+                    <source src="videos/instructions/demo_video.mp4" type="video/mp4">
+                </video>
+                <!-- Video of the robot practising the task -->
+                <video id="practise_video" class="vid" style="display:none">
+                    <source src="videos/instructions/11.mp4" type="video/mp4">
+                </video>
+                <progress id='progress_bar' min='0' max='100' value='0' style="width: 100%;display:none;"></progress>
+                <!-- Snapshot on which teaching happens -->
+                <img src="pictures/instruction.png" id="demo_picture" class="image1" alt="Pepper robot">
+                <!-- Big blue rings to be used in the instruction on which items can be selected -->
+                <img src="pictures/ring_blue.png" id="left_big_ring" class="image2" alt="" style="width: 100; display:none">
+                <img src="pictures/ring_blue.png" id="right_big_ring" class="image3" alt="" style="width: 100; display:none">
+                <!-- Big red rings to be used as a warning when no item is selected -->
+                <img src="pictures/ring_red.png" id="left_big_ring_red" class="image2" alt="" style="width: 100; display:none">
+                <img src="pictures/ring_red.png" id="right_big_ring_red" class="image3" alt="" style="width: 100; display:none">
+                <!-- Green rings to appear on top of each food item for selection -->
+                <img src="pictures/ring_green.png" id="11_ring" name="1" class="image4" alt="" style="width: 100;"
+                    onmouseover=show_ring_left(this) onmouseout=hide_ring_left(this) onclick=select_ring_left(this)>
+                <img src="pictures/ring_green.png" id="12_ring" name="2" class="image5" alt="" style="width: 100;"
+                    onmouseover=show_ring_left(this) onmouseout=hide_ring_left(this) onclick=select_ring_left(this)>
+                <img src="pictures/ring_green.png" id="21_ring" name="1" class="image6" alt="" style="width: 100;"
+                    onmouseover=show_ring_right(this) onmouseout=hide_ring_right(this) onclick=select_ring_right(this)>
+                <img src="pictures/ring_green.png" id="22_ring" name="2" class="image7" alt="" style="width: 100;"
+                    onmouseover=show_ring_right(this) onmouseout=hide_ring_right(this) onclick=select_ring_right(this)>
+        </div>
+
+        <div class="row" id="subtitle_1" style="display: none;">
+            <div class="col-lg-2 col-md-2"></div>
+            <div class="col-lg-8 col-md-8" style="text-align:center;">
+                <div class="row"
+                    style="margin-bottom: 40px; padding:0; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;">
+                    <h3 style="color: #003399; text-align:left"><b>
+                            Now, we will walk you through our online interface that lets you teach the robot how to
+                            make your food.
+                        </b>
+                    </h3>
+                    <h3 style="color: #003399; text-align:left"><b>
+                            You need to show your preference for adding some ingredients to complete preparing your
+                            food.
+                        </b>
+                    </h3>
+                    </h3>
+                </div>
+                <input id="step_1_continue_button" class="btn btn-success" type="button" value="Continue" onclick="to_step_2()"
+                    style="display: none; border: 2px solid #000; color: #000; width:150px; height:50px; font-weight: bold; font-size: 20px">
+            </div>
+            <div class="col-lg-2 col-md-2"></div>
+        </div>
+
+        <div class="row" id="subtitle_2" style="display: none;">
+            <div class="col-lg-2 col-md-2"></div>
+            <div class="col-lg-8 col-md-8" style="text-align:center;">
+                <div class="row"
+                    style="margin-bottom: 40px; padding:0; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;">
+                    <h3 style="color: #003399; text-align:left"><b>
+                            Here, you should select one item from the available options on each side of the bowl,
+                            so that the robot will learn what to
+                            add according to your preference.
+                        </b>
+                    </h3>
+                    <h3 style="color: #003399; text-align:left"><b>
+                            This means, you need to select one item per each indicated circle.
+                        </b>
+                    </h3>
+                </div>
+                <input id="step_2_continue_button" class="btn btn-success" type="button" value="Continue" onclick="to_step_3()"
+                    style="display: none; border: 2px solid #000; color: #000; width:150px; height:50px; font-weight: bold; font-size: 20px">
+            </div>
+            <div class="col-lg-2 col-md-2"></div>
+        </div>
+
+        <div class="row" id="subtitle_3" style="display: none;">
+            <div class="col-lg-2 col-md-2"></div>
+            <div class="col-lg-8 col-md-8" style="text-align:center;">
+                <div class="row"
+                    style="margin-bottom: 40px; padding:0; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;">
+                    <h3 style="color: #003399; text-align:left"><b>
+                            As you can see, you would be able to click on one item on each side of the bowl in the picture.
+                        </b>
+                    </h3>
+                    <h3 style="color: #003399; text-align:left"><b>
+                            This would result in green rings appearing around the selected items.
+                        </b>
+                    </h3>
+                    <h3 style="color: #003399; text-align:left"><b>
+                            You may modify your preference by clicking on any item before you confirm.
+                        </b>
+                    </h3>
+                </div>
+                <input id="step_3_continue_button" class="btn btn-success" type="button" value="Continue" onclick="to_step_4()"
+                    style="display: none; border: 2px solid #000; color: #000; width:150px; height:50px; font-weight: bold; font-size: 20px">
+            </div>
+            <div class="col-lg-2 col-md-2"></div>
+        </div>
+
+        <div class="row" id="subtitle_4" style="display: none;">
+            <div class="col-lg-2 col-md-2"></div>
+            <div class="col-lg-8 col-md-8" style="text-align:center;">
+                <div class="row"
+                    style="margin-bottom: 40px; padding:0; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;">
+                    <h3 style="color: #003399; text-align:left"><b>
+                            Now, please try this yourself. Use your mouse and select one of the bottles and one of the
+                            cans in the picture.
+                        </b>
+                    </h3>
+                    <h3 style="color: #003399; text-align:left"><b>
+                            You may modify your preference by clicking on any item before you click on the Confirm button
+                            below.
+                        </b>
+                    </h3>
+                    <h3 style="color: #003399; text-align:left"><b>
+                            One item per side should be selected.
+                        </b>
+                    </h3>
+                </div>
+                <input id="step_4_continue_button" class="btn btn-success" type="button" value="Confirm" onclick="to_step_5()"
+                    style="background-color: #68c3ff; display: none; border: 2px solid #000; color: #000; width:150px; height:50px; font-weight: bold; font-size: 20px">
+            </div>
+            <div class="col-lg-2 col-md-2"></div>
+        </div>
+
+        <div class="row" id="subtitle_5" style="display: none;">
+            <div class="col-lg-2 col-md-2"></div>
+            <div class="col-lg-8 col-md-8" style="text-align:center;">
+                <div class="row"
+                    style="margin-bottom: 40px; padding:0; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;">
+                    <h3 style="color: #003399; text-align:left"><b>
+                            You have taught the robot to add <b><span id="item_left_name" style="color: #000000;"></span></b> and
+                            <b><span id="item_right_name" style="color: #000000;"></span></b> to the food. </b>
+                    </h3>
+                    <div id="subtitle_52" style="display: none;">
+                        <h3 style="color: #003399; text-align:left;"><b>
+                                By clicking on the Perform button, the robot will execute what it has learned. </h3>
+                    </div>
+                </div>
+                <input id="step_5_continue_button" class="btn btn-success" type="button" value="Perform" onclick="to_step_6()"
+                    style="display: none; border: 2px solid #000; color: #000; width:150px; height:50px; font-weight: bold; font-size: 20px">
+            </div>
+            <div class="col-lg-2 col-md-2"></div>
+        </div>
+
+        <div class="row" id="subtitle_6" style="display: none;">
+            <div class="col-lg-2 col-md-2"></div>
+            <div class="col-lg-8 col-md-8" style="text-align:center;">
+                <div class="row"
+                    style="margin-bottom: 40px; padding:0; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;">
+                    <h3 style="color: #003399; text-align:left"><b>
+                            You have taught the robot to add <b><span id="item_left_name_next" style="color: #000000;"></span></b>
+                            and
+                            <b><span id="item_right_name_next" style="color: #000000;"></span></b> to the food. </b>
+                        <h3 style="color: #003399; text-align:left"><b>
+                                The robot is now continuing with preparing the food according to your instruction. </h3>
+                    </h3>
+                </div>
+                <div class="row" id="message_window" style="display: none;">
+                    <div class="col-lg-2 col-md-2"></div>
+                    <div class="col-lg-8 col-md-8" style="margin:auto;padding:0;text-align: center;">
+                        <h5>(Click on the page to resume the video)</h5>
+                    </div>
+                </div>
+                <input id="replay" class="btn btn-success" type="button" value="Replay↩"
+                    onclick="start_video();"
+                    style="display: none; background-color: #ffffff; border: 2px solid #000; color: #000; width:120px; height:50px; font-weight: bold; font-size: 20px;">
+                <input id="step_6_continue_button" class="btn btn-success" type="button" value="Continue" onclick="to_step_7()"
+                    style="display: none; border: 2px solid #000; color: #000; width:150px; height:50px; font-weight: bold; font-size: 20px">
+            </div>
+            <div class="col-lg-2 col-md-2"></div>
+        </div>
+
+        <div class="row" id="subtitle_7" style="display: none;">
+            <div class="col-lg-2 col-md-2"></div>
+            <div class="col-lg-8 col-md-8" style="text-align:center;">
+                <div class="row"
+                    style="margin-bottom: 40px; padding:0; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;">
+                    <h3 style="color: #003399; text-align:left"><b>
+                            There are two robots in this study. In the following, you will teach each of them how you prefer to have a cup of
+                            tea, a bowl of salad, and soup. </h3>
+                    </h3>
+                    <h3 style="color: #003399; text-align:left"><b>
+                        In the teaching process, you will interact with each robot six times. After every training round, you will watch the robot practicing what it has learned. Then,
+                            you will be asked to answer a few questions regarding its behaviour and your thoughts.</h3>
+                    <h3 style="color: #003399; text-align:left"><b>
+                            Please pay extra attention to the robots' actions.</h3>
+                </div>
+                <h4 style="margin-top: 60px">-Please do not press "back" or "refresh" button on your browser at any
+                    point-
+                </h4>
+                <input id="step_7_continue_button" class="btn btn-success" type="button" value="Start" onclick="to_study()"
+                    style="display: none; border: 2px solid #000; color: #000; width:150px; height:50px; font-weight: bold; font-size: 20px">
+            </div>
+            <div class="col-lg-2 col-md-2"></div>
+        </div>
+    </div>
+
+    <script language="JavaScript">
+        // Width and height of the image or the video to be updated with window size
+        var current_width;
+        var current_height;
+        // Current step in the instructions
+        let step = 1;
+        // Check if any item on the left side or right side has been selected
+        let selected_left = new Boolean(false);
+        let selected_right = new Boolean(false);
+        // Food item names
+        var items_left = ["A", "B"];
+        var items_right = ["C", "D"];
+        // Indices of selected items from the lists
+        let selected_left_index = 0;
+        let selected_right_index = 0;
+        // Controllers for ensuring rings are positioned on top of each food item
+        var rings_pos = [8.7, 2.83, 15, 7.7, 3.85, 1.58, 1.24, 35];
+        // To be used for the progress bar
+        var media_player;
+        var progress_bar;
+
+        // To initialize the page
+        function init() {
+            // Showing the elements for this step
+            document.getElementById("step").innerHTML = "1";
+            document.getElementById("subtitle_1").style["display"] = "initial";
+            // Setting up media player for the video
+            initialize_media_player();
+            // Updating the width and height of the image or the video
+            // This will also called for updates in real-time with any '$(window).resize' event
+            imgSize();
+            // Placing rings at their correct locations w.r.t the image or video
+            // Big rings (Blue and red)
+            document.documentElement.style.setProperty('--pos_fromleft_left_big_ring', current_width / rings_pos[0] + "px");
+            document.documentElement.style.setProperty('--pos_frombottom_left_big_ring', -current_height / rings_pos[2] + "px");
+            document.documentElement.style.setProperty('--pos_fromleft_right_big_ring', current_width - current_width / rings_pos[1] + "px");
+            document.documentElement.style.setProperty('--pos_frombottom_right_big_ring', -current_height / rings_pos[2] + "px");
+            // Small rings (Green)
+            document.documentElement.style.setProperty('--pos_fromleft_left_small_ring_1', current_width / rings_pos[3] + "px");
+            document.documentElement.style.setProperty('--pos_frombottom_left_small_ring_1', -current_height / rings_pos[7] + "px");
+            document.documentElement.style.setProperty('--pos_fromleft_left_small_ring_2', current_width / rings_pos[4] + "px");
+            document.documentElement.style.setProperty('--pos_frombottom_left_small_ring_2', -current_height / rings_pos[7] + "px");
+            document.documentElement.style.setProperty('--pos_fromleft_right_small_ring_1', current_width / rings_pos[5] + "px");
+            document.documentElement.style.setProperty('--pos_frombottom_right_small_ring_1', -current_height / rings_pos[7] + "px");
+            document.documentElement.style.setProperty('--pos_fromleft_right_small_ring_2', current_width / rings_pos[6] + "px");
+            document.documentElement.style.setProperty('--pos_frombottom_right_small_ring_2', -current_height / rings_pos[7] + "px");
+            // We can add a delay to display the "continue" button, to ensure participants have read the instructions
+            setTimeout(() => {
+                document.getElementById("step_1_continue_button").style["display"] = "initial";
+            }, 10);
+        }
+
+        // To go to step 2
+        function to_step_2() {
+            step = 2;
+            // Showing/updating the elements for this step, hiding unnecessary ones
+            document.getElementById("step").innerHTML = "2";
+            document.getElementById("left_big_ring").style["display"] = "initial";
+            document.getElementById("right_big_ring").style["display"] = "initial";
+            document.getElementById("subtitle_1").style["display"] = "none";
+            document.getElementById("subtitle_2").style["display"] = "initial";
+            // We can add a delay to display the "continue" button, to ensure participants have read the instructions
+            setTimeout(() => {
+                document.getElementById("step_2_continue_button").style["display"] = "initial";
+                document.getElementById("step_2_continue_button").scrollIntoView();
+            }, 10);
+        }
+
+        // To go to step 3
+        function to_step_3() {
+            step = 3;
+            // Showing/updating the elements for this step, hiding unnecessary ones
+            document.getElementById("step").innerHTML = "3";
+            document.getElementById("left_big_ring").style["display"] = "none";
+            document.getElementById("right_big_ring").style["display"] = "none";
+            document.getElementById("subtitle_2").style["display"] = "none";
+            document.getElementById("subtitle_3").style["display"] = "initial";
+            document.getElementById("demo_video").style["display"] = "initial";
+            document.getElementById("demo_picture").style["display"] = "none";
+            // Playing the demo video
+            let vid = document.getElementById("demo_video");
+            vid.play();
+            // We can add a delay to display the "continue" button, to ensure participants have read the instructions
+            setTimeout(() => {
+                document.getElementById("step_3_continue_button").style["display"] = "initial";
+                document.getElementById("step_3_continue_button").scrollIntoView();
+            }, 10);
+            // Repeating the video after it is finished
+            vid.onended = function () {
+                vid.play();
+            };
+        }
+
+        // To go to step 4
+        function to_step_4() {
+            step = 4;
+            // Showing/updating the elements for this step, hiding unnecessary ones
+            document.getElementById("step").innerHTML = "4";
+            document.getElementById("left_big_ring").style["display"] = "none";
+            document.getElementById("right_big_ring").style["display"] = "none";
+            document.getElementById("subtitle_3").style["display"] = "none";
+            document.getElementById("subtitle_4").style["display"] = "initial";
+            document.getElementById("demo_video").style["display"] = "none";
+            document.getElementById("demo_picture").style["display"] = "initial";
+            // We can add a delay to display the "continue" button, to ensure participants have read the instructions
+            setTimeout(() => {
+                document.getElementById("step_4_continue_button").style["display"] = "initial";
+            }, 10);
+        }
+
+        // To go to step 5
+        function to_step_5() {
+            document.getElementById("step").innerHTML = "5";
+            // If food items from both sides are selected
+            if (selected_left == true & selected_right == true) {
+                step = 5;
+                // Showing/updating the elements for this step, hiding unnecessary ones
+                document.getElementById("subtitle_4").style["display"] = "none";
+                document.getElementById("subtitle_5").style["display"] = "initial";
+                document.getElementById("item_left_name").innerHTML = items_left[selected_left_index - 1];
+                document.getElementById("item_right_name").innerHTML = items_right[selected_right_index - 1];
+                document.getElementById("item_left_name_next").innerHTML = items_left[selected_left_index - 1];
+                document.getElementById("item_right_name_next").innerHTML = items_right[selected_right_index - 1];
+                setTimeout(() => {
+                    // We can add a delay to display the "continue" button and the rest of the subtitle, to ensure participants have read the instructions
+                    document.getElementById("subtitle_52").style["display"] = "initial";
+                    document.getElementById("step_5_continue_button").style["display"] = "initial";
+                    document.getElementById("step_5_continue_button").scrollIntoView();
+                }, 10);
+            // If any side has unselected food item
+            } else {
+                // Showing the elements for this step (Red big rings on unselected side)
+                if (selected_left == false) {
+                    document.getElementById("left_big_ring_red").style["display"] = "initial";
+                }
+                if (selected_right == false) {
+                    document.getElementById("right_big_ring_red").style["display"] = "initial";
+                }
+                // Showing browser warning
+                // The timeout makes the warning appear at the same time as the ring(s)
+                setTimeout(() => {
+                    alert("Please select one ingredient on each side of the meal (one from the left and one from the right).");
+                }, 10);
+            }
+        }
+
+        // To go to step 6
+        function to_step_6() {
+            step = 6;
+            // Showing/updating the elements for this step, hiding unnecessary ones
+            document.getElementById("step").innerHTML = "6";
+            document.getElementById("demo_picture").style["display"] = "none";
+            document.getElementById("subtitle_5").style["display"] = "none";
+            // Showing the loading gif
+            document.getElementById("loading").style["display"] = "initial";
+            // Hiding the rings for the video
+            document.documentElement.style.setProperty('--o1' + selected_left_index + '_ring', 0);
+            document.documentElement.style.setProperty('--o2' + selected_right_index + '_ring', 0);
+            // After one second, showing the video of robot practising the task
+            let vid = document.getElementById("practise_video");
+            let is_playing = new Boolean(false);
+            setTimeout(() => {
+                // Showing/updating the elements for this step, hiding unnecessary ones
+                document.getElementById("loading").style["display"] = "none";
+                // Select the corresponding video (correct behaviour)
+                // Videos are named "[selected_left_index][selected_right_index].mp4"
+                vid.src = "videos/instructions/" + selected_left_index + selected_right_index + ".mp4";
+                document.getElementById("practise_video").style["display"] = "initial";
+                document.getElementById("progress_bar").style["display"] = "initial";
+                vid.play();
+                is_playing = true;
+                document.getElementById("subtitle_6").style["display"] = "initial";
+                // Pausing the video and showing a text if window is unselected
+                window.onblur = function () { if (is_playing == true) document.getElementById('practise_video').pause(); if (is_playing == true) document.getElementById("message_window").style["display"] = "initial"; };
+                // Resuming the video and hiding the text after window is selected
+                window.onfocus = function () { if (is_playing == true) document.getElementById('practise_video').play(); if (is_playing == true) document.getElementById("message_window").style["display"] = "none"; };
+            }, 1000);
+            // After finishing, participants can either replay the video or go to the last step
+            vid.onended = function () {
+                is_playing = false;
+                document.getElementById("replay").style["display"] = "initial";
+                document.getElementById("step_6_continue_button").style["display"] = "initial";
+                document.getElementById("step_6_continue_button").scrollIntoView();
+            };
+        }
+
+        // To go to step 7
+        function to_step_7() {
+            step = 7;
+            // Showing/updating the elements for this step, hiding unnecessary ones
+            document.getElementById("step").innerHTML = "7";
+            document.getElementById("progress_bar").style["display"] = "none";
+            document.getElementById("practise_video").style["display"] = "none";
+            document.getElementById("subtitle_6").style["display"] = "none";
+            document.getElementById("subtitle_7").style["display"] = "initial";
+            // We can add a delay to display the "continue" button, to ensure participants have read the instructions
+            setTimeout(() => {
+                document.getElementById("step_7_continue_button").style["display"] = "initial";
+                document.getElementById("step_7_continue_button").scrollIntoView();
+            }, 10);
+        }
+
+        // To go to the next part
+        function to_study() {
+            // Here we can direct participants to the beginning of the study
+        }
+
+        // For the progress bar below the practising video
+        function initialize_media_player() {
+            media_player = document.getElementById('practise_video');
+            progress_bar = document.getElementById('progress_bar');
+            // To update the progress bar
+            media_player.addEventListener('timeupdate', update_progress_bar, false);
+        }
+        function update_progress_bar() {
+            // Update the progress value
+            progress_bar.value = Math.floor((100 / media_player.duration) * media_player.currentTime);
+        }
+
+        // Getting the size of the image
+        function imgSize() {
+            var myImg = document.querySelector("#demo_picture");
+            current_width = myImg.clientWidth;
+            current_height = myImg.clientHeight;
+        }
+
+        // Starting practise video
+        function start_video() {
+                let vid = document.getElementById("practise_video");
+                vid.scrollIntoView();
+                vid.play();
+        }
+
+        // For showing (at 50% opacity) and hiding rings when mouse is over items in step 4
+        function show_ring_left(obj) {
+            if (step == 4 && selected_left == false) {document.documentElement.style.setProperty('--o' + obj.id, 0.5);}
+        }
+        function show_ring_right(obj) {
+            if (step == 4 && selected_right == false) {document.documentElement.style.setProperty('--o' + obj.id, 0.5);}
+        }
+        function hide_ring_left(obj) {
+            if (step == 4 && selected_left == false) {document.documentElement.style.setProperty('--o' + obj.id, 0);}
+        }
+        function hide_ring_right(obj) {
+            if (step == 4 && selected_right == false) {document.documentElement.style.setProperty('--o' + obj.id, 0);}
+        }
+
+        // Managing what will happen on the 'left' side in step 4, after clicking on items
+        function select_ring_left(obj) {
+            if (step == 4) {
+                // If the item is selected, clicking will deselect the item
+                if (selected_left_index == parseInt(obj.name)) {
+                    document.documentElement.style.setProperty('--o11_ring', 0);
+                    document.documentElement.style.setProperty('--o12_ring', 0);
+                    document.documentElement.style.setProperty('--o' + obj.id, 0.5);
+                    selected_left_index = 0;
+                    selected_left = false;
+                } else {
+                    // If nothing is selected, clicking will select the item immediately
+                    if (selected_left_index == 0) {
+                        document.documentElement.style.setProperty('--o' + obj.id, 1);
+                        selected_left_index = parseInt(obj.name);
+                        selected_left = true;
+                    }
+                    // If another item is selected, clicking will change the selection
+                    if (selected_left_index != parseInt(obj.name)) {
+                        document.documentElement.style.setProperty('--o11_ring', 0);
+                        document.documentElement.style.setProperty('--o12_ring', 0);
+                        document.documentElement.style.setProperty('--o' + obj.id, 1);
+                        selected_left_index = parseInt(obj.name);
+                    }
+                }
+            }
+            // After a click, the red warning ring can disappear
+            document.getElementById("left_big_ring_red").style["display"] = "none";
+        }
+
+        // The same function as above, for the 'right' side
+        function select_ring_right(obj) {
+            if (step == 4) {
+                if (selected_right_index == parseInt(obj.name)) {
+                    document.documentElement.style.setProperty('--o21_ring', 0);
+                    document.documentElement.style.setProperty('--o22_ring', 0);
+                    document.documentElement.style.setProperty('--o' + obj.id, 0.5);
+                    selected_right_index = 0;
+                    selected_right = false;
+                } else {
+                    if (selected_right_index == 0) {
+                        document.documentElement.style.setProperty('--o' + obj.id, 1);
+                        selected_right_index = parseInt(obj.name);
+                        selected_right = true;
+                    }
+                    if (selected_right_index != parseInt(obj.name)) {
+                        document.documentElement.style.setProperty('--o21_ring', 0);
+                        document.documentElement.style.setProperty('--o22_ring', 0);
+                        document.documentElement.style.setProperty('--o' + obj.id, 1);
+                        selected_right_index = parseInt(obj.name);
+                    }
+                }
+            }
+            document.getElementById("right_big_ring_red").style["display"] = "none";
+        }
+
+        // Same as what defined before, to update location with any change in widow size
+        $(window).resize(function () {
+            imgSize();
+            document.documentElement.style.setProperty('--pos_fromleft_left_big_ring', current_width / rings_pos[0] + "px");
+            document.documentElement.style.setProperty('--pos_frombottom_left_big_ring', -current_height / rings_pos[2] + "px");
+            document.documentElement.style.setProperty('--pos_fromleft_right_big_ring', current_width - current_width / rings_pos[1] + "px");
+            document.documentElement.style.setProperty('--pos_frombottom_right_big_ring', -current_height / rings_pos[2] + "px");
+
+            document.documentElement.style.setProperty('--pos_fromleft_left_small_ring_1', current_width / rings_pos[3] + "px");
+            document.documentElement.style.setProperty('--pos_frombottom_left_small_ring_1', -current_height / rings_pos[7] + "px");
+            document.documentElement.style.setProperty('--pos_fromleft_left_small_ring_2', current_width / rings_pos[4] + "px");
+            document.documentElement.style.setProperty('--pos_frombottom_left_small_ring_2', -current_height / rings_pos[7] + "px");
+            document.documentElement.style.setProperty('--pos_fromleft_right_small_ring_1', current_width / rings_pos[5] + "px");
+            document.documentElement.style.setProperty('--pos_frombottom_right_small_ring_1', -current_height / rings_pos[7] + "px");
+            document.documentElement.style.setProperty('--pos_fromleft_right_small_ring_2', current_width / rings_pos[6] + "px");
+            document.documentElement.style.setProperty('--pos_frombottom_right_small_ring_2', -current_height / rings_pos[7] + "px");
+        });
+
+    </script>
+</body>
+
+</html>
