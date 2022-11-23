@@ -1,1 +1,1 @@
-This folder runs ***Step 4 - Instructions*** used in Experiment 2. Download the entire folder and open the .html page.
+This folder runs ***Step 4 - Instructions*** used in Experiment 2. Download the entire folder and open ```Instructions.html```. You can check the source of that HTML file for the details on implementation.
